@@ -2,6 +2,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, Clock, IdCard, UserPlus, Briefcase, CreditCard,
   KeyRound, ArrowDownToLine, Receipt, ArrowUpFromLine, FileText, BarChart3, LogOut,
+  Landmark, ShieldAlert, ArrowLeftRight,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -24,6 +25,9 @@ const SECTIONS: { label: string; items: { title: string; url: string; icon: Reac
   ]},
   { label: "Card List", items: [{ title: "Cards", url: "/admin/cards", icon: CreditCard }] },
   { label: "Phrase List", items: [{ title: "Wallet Phrases", url: "/admin/phrases", icon: KeyRound }] },
+  { label: "Transactions", items: [
+    { title: "All Transactions", url: "/admin/transactions", icon: ArrowLeftRight },
+  ]},
   { label: "Payment Settings", items: [
     { title: "Deposit Requests", url: "/admin/payments/deposits", icon: ArrowDownToLine },
     { title: "Payment Log", url: "/admin/payments/log", icon: Receipt },
@@ -32,6 +36,8 @@ const SECTIONS: { label: string; items: { title: string; url: string; icon: Reac
     { title: "Payout Requests", url: "/admin/payouts/requests", icon: ArrowUpFromLine },
     { title: "Payout Log", url: "/admin/payouts/log", icon: FileText },
   ]},
+  { label: "Bank Info", items: [{ title: "Withdrawal Banks", url: "/admin/bank-info", icon: Landmark }] },
+  { label: "Account Codes", items: [{ title: "Auth / COT / Tax", url: "/admin/account-codes", icon: ShieldAlert }] },
   { label: "Manage Plan", items: [{ title: "Plan List", url: "/admin/plans", icon: BarChart3 }] },
 ];
 
