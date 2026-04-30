@@ -13,16 +13,13 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const checkAdminRole = async (userId: string) => {
-    const { data, error } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "admin")
-      .maybeSingle();
+  const checkAdminRole = async () => {
+    const { data, error } = await supabase.functions.invoke<{ isAdmin: boolean }>("admin-check", {
+      body: {},
+    });
 
     if (error) throw error;
-    return !!data;
+    return data?.isAdmin === true;
   };
 
   useEffect(() => {
@@ -31,7 +28,7 @@ export default function AdminLogin() {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session?.user) return;
       try {
-        if (await checkAdminRole(session.user.id)) {
+        if (await checkAdminRole()) {
           navigate("/admin/dashboard", { replace: true });
         }
       } catch {
@@ -49,7 +46,7 @@ export default function AdminLogin() {
         toast.error(error?.message ?? "Sign in failed");
         return;
       }
-      const isAdmin = await checkAdminRole(data.user.id);
+      const isAdmin = await checkAdminRole();
 
       if (!isAdmin) {
         await supabase.auth.signOut({ scope: "local" });
