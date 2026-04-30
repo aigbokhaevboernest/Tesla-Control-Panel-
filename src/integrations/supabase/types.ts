@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_codes: {
+        Row: {
+          auth_code: string | null
+          auth_required: boolean
+          cot_code: string | null
+          cot_required: boolean
+          created_at: string
+          id: string
+          tax_code: string | null
+          tax_required: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auth_code?: string | null
+          auth_required?: boolean
+          cot_code?: string | null
+          cot_required?: boolean
+          created_at?: string
+          id?: string
+          tax_code?: string | null
+          tax_required?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auth_code?: string | null
+          auth_required?: boolean
+          cot_code?: string | null
+          cot_required?: boolean
+          created_at?: string
+          id?: string
+          tax_code?: string | null
+          tax_required?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       cards: {
         Row: {
           card_number: string | null
@@ -86,6 +125,42 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      email_log: {
+        Row: {
+          body: string | null
+          created_at: string
+          email_type: string
+          id: string
+          recipient_email: string
+          recipient_user_id: string | null
+          sent_by: string | null
+          status: string
+          subject: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          email_type: string
+          id?: string
+          recipient_email: string
+          recipient_user_id?: string | null
+          sent_by?: string | null
+          status?: string
+          subject: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          email_type?: string
+          id?: string
+          recipient_email?: string
+          recipient_user_id?: string | null
+          sent_by?: string | null
+          status?: string
+          subject?: string
         }
         Relationships: []
       }
@@ -311,6 +386,36 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      withdrawal_bank_info: {
+        Row: {
+          account_name: string
+          account_number: string
+          bank_name: string
+          created_at: string
+          id: string
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          account_name: string
+          account_number: string
+          bank_name: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          account_name?: string
+          account_number?: string
+          bank_name?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
         }
         Relationships: []
       }
