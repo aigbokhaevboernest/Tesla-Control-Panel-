@@ -5,8 +5,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "../components/StatusBadge";
 import { toast } from "sonner";
+import { notifyEmail } from "../lib/notifyEmail";
 
 export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
   const [rows, setRows] = useState<any[]>([]);
