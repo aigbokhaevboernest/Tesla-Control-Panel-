@@ -37,13 +37,20 @@ export default function AdminLogin() {
         toast.error(error?.message ?? "Sign in failed");
         return;
       }
-      const { data: roleRow } = await supabase
+      const { data: roleRow, error: roleErr } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", data.user.id)
         .eq("role", "admin")
         .maybeSingle();
 
+      console.log("[admin-login] role check", { roleRow, roleErr, userId: data.user.id });
+
+      if (roleErr) {
+        await supabase.auth.signOut();
+        toast.error(`Role check failed: ${roleErr.message}`);
+        return;
+      }
       if (!roleRow) {
         await supabase.auth.signOut();
         toast.error("Access denied. Admins only.");
