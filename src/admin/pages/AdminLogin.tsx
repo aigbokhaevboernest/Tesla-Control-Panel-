@@ -13,18 +13,30 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const checkAdminRole = async (userId: string) => {
+    const { data, error } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .maybeSingle();
+
+    if (error) throw error;
+    return !!data;
+  };
+
   useEffect(() => {
     document.title = "Admin Login";
     // If already an admin session, skip ahead
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session?.user) return;
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .eq("role", "admin")
-        .maybeSingle();
-      if (data) navigate("/admin/dashboard", { replace: true });
+      try {
+        if (await checkAdminRole(session.user.id)) {
+          navigate("/admin/dashboard", { replace: true });
+        }
+      } catch {
+        await supabase.auth.signOut({ scope: "local" });
+      }
     });
   }, [navigate]);
 
@@ -37,22 +49,10 @@ export default function AdminLogin() {
         toast.error(error?.message ?? "Sign in failed");
         return;
       }
-      const { data: roleRow, error: roleErr } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", data.user.id)
-        .eq("role", "admin")
-        .maybeSingle();
+      const isAdmin = await checkAdminRole(data.user.id);
 
-      console.log("[admin-login] role check", { roleRow, roleErr, userId: data.user.id });
-
-      if (roleErr) {
-        await supabase.auth.signOut();
-        toast.error(`Role check failed: ${roleErr.message}`);
-        return;
-      }
-      if (!roleRow) {
-        await supabase.auth.signOut();
+      if (!isAdmin) {
+        await supabase.auth.signOut({ scope: "local" });
         toast.error("Access denied. Admins only.");
         return;
       }
