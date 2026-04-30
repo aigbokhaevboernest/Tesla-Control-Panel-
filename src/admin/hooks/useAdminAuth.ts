@@ -21,20 +21,18 @@ export function useAdminAuth(redirectIfNot = true) {
   useEffect(() => {
     let active = true;
 
-    const check = async (userId: string | null, email: string | null) => {
+    const check = async (userId: string | null, email: string | null, accessToken?: string) => {
       if (!userId) {
         if (active) setState({ loading: false, isAdmin: false, userId: null, email: null });
         if (redirectIfNot) navigate("/admin/login", { replace: true });
         return;
       }
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .eq("role", "admin")
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke<{ isAdmin: boolean }>("admin-check", {
+        body: {},
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+      });
 
-      const isAdmin = !!data && !error;
+      const isAdmin = data?.isAdmin === true && !error;
       if (active) setState({ loading: false, isAdmin, userId, email });
       if (!isAdmin && redirectIfNot) {
         await supabase.auth.signOut({ scope: "local" });
@@ -43,11 +41,11 @@ export function useAdminAuth(redirectIfNot = true) {
     };
 
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
-      check(session?.user?.id ?? null, session?.user?.email ?? null);
+      void check(session?.user?.id ?? null, session?.user?.email ?? null, session?.access_token);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      check(session?.user?.id ?? null, session?.user?.email ?? null);
+      void check(session?.user?.id ?? null, session?.user?.email ?? null, session?.access_token);
     });
 
     return () => {
