@@ -12,6 +12,9 @@ import PhrasesList from "../pages/PhrasesList";
 import DepositsPage from "../pages/DepositsPage";
 import PayoutsPage from "../pages/PayoutsPage";
 import PlansPage from "../pages/PlansPage";
+import BankInfoPage from "../pages/BankInfoPage";
+import AccountCodesPage from "../pages/AccountCodesPage";
+import TransactionsPage from "../pages/TransactionsPage";
 
 export default function AdminRoutes() {
   return (
@@ -27,10 +30,13 @@ export default function AdminRoutes() {
         <Route path="managers/create" element={<CreateManager />} />
         <Route path="cards" element={<CardsList />} />
         <Route path="phrases" element={<PhrasesList />} />
+        <Route path="transactions" element={<TransactionsPage />} />
         <Route path="payments/deposits" element={<DepositsPage mode="pending" />} />
         <Route path="payments/log" element={<DepositsPage mode="log" />} />
         <Route path="payouts/requests" element={<PayoutsPage mode="pending" />} />
         <Route path="payouts/log" element={<PayoutsPage mode="log" />} />
+        <Route path="bank-info" element={<BankInfoPage />} />
+        <Route path="account-codes" element={<AccountCodesPage />} />
         <Route path="plans" element={<PlansPage />} />
       </Route>
       <Route index element={<Navigate to="dashboard" replace />} />

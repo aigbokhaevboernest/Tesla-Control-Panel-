@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { MoreVertical, Eye, Trash2, Ban, CheckCircle2 } from "lucide-react";
+import { MoreVertical, Eye, Trash2, Ban, CheckCircle2, AlertTriangle } from "lucide-react";
 import { StatusBadge } from "../components/StatusBadge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -47,6 +47,14 @@ export default function UsersList({ statusFilter }: { statusFilter?: string }) {
 
   const blockToggle = async (u: any) => {
     const newStatus = u.status === "blocked" ? "active" : "blocked";
+    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("id", u.id);
+    if (error) return toast.error(error.message);
+    toast.success(`User ${newStatus}`);
+    load();
+  };
+
+  const suspendToggle = async (u: any) => {
+    const newStatus = u.status === "suspended" ? "active" : "suspended";
     const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("id", u.id);
     if (error) return toast.error(error.message);
     toast.success(`User ${newStatus}`);
@@ -121,6 +129,9 @@ export default function UsersList({ statusFilter }: { statusFilter?: string }) {
                         <DropdownMenuItem asChild><Link to={`/admin/users/${u.id}`}><Eye className="mr-2 h-4 w-4" />View User</Link></DropdownMenuItem>
                         <DropdownMenuItem onClick={() => blockToggle(u)}>
                           {u.status === "blocked" ? <><CheckCircle2 className="mr-2 h-4 w-4" />Unblock</> : <><Ban className="mr-2 h-4 w-4" />Block</>}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => suspendToggle(u)}>
+                          {u.status === "suspended" ? <><CheckCircle2 className="mr-2 h-4 w-4" />Reactivate</> : <><AlertTriangle className="mr-2 h-4 w-4" />Suspend</>}
                         </DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onClick={() => del(u)}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
                       </DropdownMenuContent>

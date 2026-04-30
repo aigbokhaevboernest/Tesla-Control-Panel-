@@ -5,8 +5,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "../components/StatusBadge";
 import { toast } from "sonner";
+import { notifyEmail } from "../lib/notifyEmail";
 
 export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
   const [rows, setRows] = useState<any[]>([]);
@@ -14,6 +16,7 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
   const [status, setStatus] = useState("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [sendEmail, setSendEmail] = useState(true);
 
   const load = async () => {
     setLoading(true);
@@ -40,6 +43,19 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
         body: { user_id: d.user_id, action: "increment", amount: Number(d.amount) },
       });
       if (bErr) return toast.error(bErr.message);
+      await notifyEmail({
+        send: sendEmail, userId: d.user_id, email: d.profiles?.email,
+        intent: "deposit_approved",
+        subject: "Your deposit has been approved",
+        body: `Your deposit of $${Number(d.amount).toLocaleString()} has been approved and credited.`,
+      });
+    } else if (newStatus === "rejected") {
+      await notifyEmail({
+        send: sendEmail, userId: d.user_id, email: d.profiles?.email,
+        intent: "deposit_rejected",
+        subject: "Your deposit was rejected",
+        body: `Your deposit of $${Number(d.amount).toLocaleString()} was rejected.`,
+      });
     }
     toast.success(`Marked ${newStatus}`);
     load();
@@ -69,6 +85,12 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
               <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
               <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
             </div>
+          )}
+          {mode === "pending" && (
+            <label className="mb-3 flex items-center gap-2 text-sm">
+              <Checkbox checked={sendEmail} onCheckedChange={(v) => setSendEmail(v === true)} />
+              Send email notification on approve / reject
+            </label>
           )}
           <Table>
             <TableHeader><TableRow>

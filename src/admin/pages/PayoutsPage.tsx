@@ -5,8 +5,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "../components/StatusBadge";
 import { toast } from "sonner";
+import { notifyEmail } from "../lib/notifyEmail";
 
 export default function PayoutsPage({ mode }: { mode: "pending" | "log" }) {
   const [rows, setRows] = useState<any[]>([]);
@@ -14,6 +16,7 @@ export default function PayoutsPage({ mode }: { mode: "pending" | "log" }) {
   const [status, setStatus] = useState("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [sendEmail, setSendEmail] = useState(true);
 
   const load = async () => {
     setLoading(true);
@@ -40,6 +43,19 @@ export default function PayoutsPage({ mode }: { mode: "pending" | "log" }) {
         body: { user_id: p.user_id, action: "decrement", amount: Number(p.amount) },
       });
       if (bErr) return toast.error(bErr.message);
+      await notifyEmail({
+        send: sendEmail, userId: p.user_id, email: p.profiles?.email,
+        intent: "payout_approved",
+        subject: "Your withdrawal was paid",
+        body: `Your withdrawal of $${Number(p.amount).toLocaleString()} has been processed.`,
+      });
+    } else if (newStatus === "rejected") {
+      await notifyEmail({
+        send: sendEmail, userId: p.user_id, email: p.profiles?.email,
+        intent: "payout_rejected",
+        subject: "Your withdrawal was rejected",
+        body: `Your withdrawal of $${Number(p.amount).toLocaleString()} was rejected.`,
+      });
     }
     toast.success(`Marked ${newStatus}`);
     load();
@@ -69,6 +85,12 @@ export default function PayoutsPage({ mode }: { mode: "pending" | "log" }) {
               <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
               <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
             </div>
+          )}
+          {mode === "pending" && (
+            <label className="mb-3 flex items-center gap-2 text-sm">
+              <Checkbox checked={sendEmail} onCheckedChange={(v) => setSendEmail(v === true)} />
+              Send email notification on approve / reject
+            </label>
           )}
           <Table>
             <TableHeader><TableRow>

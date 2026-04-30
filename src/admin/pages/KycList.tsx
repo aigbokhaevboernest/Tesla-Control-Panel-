@@ -3,13 +3,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "../components/StatusBadge";
 import { toast } from "sonner";
 import { Check, X } from "lucide-react";
+import { notifyEmail } from "../lib/notifyEmail";
 
 export default function KycList() {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sendEmail, setSendEmail] = useState(true);
 
   const load = async () => {
     setLoading(true);
@@ -29,6 +32,14 @@ export default function KycList() {
     const { error } = await supabase.from("kyc_submissions").update({ status }).eq("id", row.id);
     if (error) return toast.error(error.message);
     await supabase.from("profiles").update({ kyc_status: status }).eq("id", row.user_id);
+    await notifyEmail({
+      send: sendEmail, userId: row.user_id, email: row.profiles?.email,
+      intent: status === "approved" ? "kyc_approved" : "kyc_rejected",
+      subject: status === "approved" ? "Your KYC was approved" : "Your KYC was rejected",
+      body: status === "approved"
+        ? "Your KYC verification has been approved. You now have full access."
+        : "Your KYC verification was rejected. Please re-submit your documents.",
+    });
     toast.success(`KYC ${status}`);
     load();
   };
@@ -41,6 +52,10 @@ export default function KycList() {
       </div>
       <Card>
         <CardContent className="p-4">
+          <label className="mb-3 flex items-center gap-2 text-sm">
+            <Checkbox checked={sendEmail} onCheckedChange={(v) => setSendEmail(v === true)} />
+            Send email notification on approve / reject
+          </label>
           <Table>
             <TableHeader>
               <TableRow>

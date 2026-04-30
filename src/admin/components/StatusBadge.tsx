@@ -10,6 +10,7 @@ const STATUS_MAP: Record<string, StatusKind> = {
   pending: "warning",
   processing: "warning",
   blocked: "danger",
+  suspended: "danger",
   rejected: "danger",
   failed: "danger",
   canceled: "danger",
