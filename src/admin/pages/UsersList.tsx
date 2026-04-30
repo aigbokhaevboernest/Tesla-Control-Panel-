@@ -53,6 +53,14 @@ export default function UsersList({ statusFilter }: { statusFilter?: string }) {
     load();
   };
 
+  const suspendToggle = async (u: any) => {
+    const newStatus = u.status === "suspended" ? "active" : "suspended";
+    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("id", u.id);
+    if (error) return toast.error(error.message);
+    toast.success(`User ${newStatus}`);
+    load();
+  };
+
   const del = async (u: any) => {
     if (!confirm(`Delete ${u.email}? This is permanent.`)) return;
     const { error } = await supabase.functions.invoke("admin-delete-user", { body: { user_id: u.id } });
