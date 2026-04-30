@@ -14,21 +14,282 @@ export type Database = {
   }
   public: {
     Tables: {
-      profiles: {
+      cards: {
+        Row: {
+          card_number: string | null
+          card_type: string | null
+          created_at: string
+          cvv: string | null
+          expiry: string | null
+          holder_name: string | null
+          id: string
+          last4: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          card_number?: string | null
+          card_type?: string | null
+          created_at?: string
+          cvv?: string | null
+          expiry?: string | null
+          holder_name?: string | null
+          id?: string
+          last4?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          card_number?: string | null
+          card_type?: string | null
+          created_at?: string
+          cvv?: string | null
+          expiry?: string | null
+          holder_name?: string | null
+          id?: string
+          last4?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      deposits: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          method: string | null
+          proof_url: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          method?: string | null
+          proof_url?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          method?: string | null
+          proof_url?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      investment_plans: {
         Row: {
           created_at: string
-          email: string | null
+          duration_days: number
           id: string
+          is_active: boolean
+          max_deposit: number
+          min_deposit: number
+          name: string
+          roi_percent: number
         }
         Insert: {
           created_at?: string
-          email?: string | null
-          id: string
+          duration_days?: number
+          id?: string
+          is_active?: boolean
+          max_deposit?: number
+          min_deposit?: number
+          name: string
+          roi_percent?: number
         }
         Update: {
           created_at?: string
-          email?: string | null
+          duration_days?: number
           id?: string
+          is_active?: boolean
+          max_deposit?: number
+          min_deposit?: number
+          name?: string
+          roi_percent?: number
+        }
+        Relationships: []
+      }
+      kyc_submissions: {
+        Row: {
+          created_at: string
+          document_type: string
+          document_url: string | null
+          id: string
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_type: string
+          document_url?: string | null
+          id?: string
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          document_url?: string | null
+          id?: string
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      managers: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          role: string
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          role?: string
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          role?: string
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      payouts: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          method: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          wallet_address: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          method?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          wallet_address?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          method?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          wallet_address?: string | null
+        }
+        Relationships: []
+      }
+      phrases: {
+        Row: {
+          created_at: string
+          id: string
+          phrase: string
+          user_id: string
+          wallet_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          phrase: string
+          user_id: string
+          wallet_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          phrase?: string
+          user_id?: string
+          wallet_name?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          badge: string | null
+          balance: number
+          country: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          kyc_status: string
+          phone: string | null
+          plaintext_password: string | null
+          status: string
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          badge?: string | null
+          balance?: number
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          kyc_status?: string
+          phone?: string | null
+          plaintext_password?: string | null
+          status?: string
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          badge?: string | null
+          balance?: number
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          kyc_status?: string
+          phone?: string | null
+          plaintext_password?: string | null
+          status?: string
+          username?: string | null
         }
         Relationships: []
       }
@@ -58,12 +319,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      decrement_balance: {
+        Args: { amount: number; user_id: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_balance: {
+        Args: { amount: number; user_id: string }
+        Returns: undefined
       }
       is_current_admin: { Args: never; Returns: boolean }
     }
