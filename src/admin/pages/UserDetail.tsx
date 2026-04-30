@@ -22,6 +22,8 @@ export default function UserDetail() {
   const [pwd, setPwd] = useState("");
   const [pwd2, setPwd2] = useState("");
   const [badge, setBadge] = useState<string>("");
+  const [emailOnCredit, setEmailOnCredit] = useState(true);
+  const [creditNote, setCreditNote] = useState<"deposit" | "profit">("profit");
 
   const load = async () => {
     if (!id) return;
@@ -49,7 +51,21 @@ export default function UserDetail() {
       body: { user_id: user.id, action: "set", amount: Number(user.balance) },
     });
     if (error) return toast.error(error.message);
+    await notifyEmail({
+      send: emailOnCredit, userId: user.id, email: user.email,
+      intent: creditNote === "profit" ? "profit_added" : "balance_credited",
+      subject: creditNote === "profit" ? "Profit added to your account" : "Your balance has been updated",
+      body: `Your new balance is $${Number(user.balance).toLocaleString()}.`,
+    });
     toast.success("Balance updated");
+  };
+
+  const toggleSuspend = async () => {
+    const newStatus = user.status === "suspended" ? "active" : "suspended";
+    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("id", user.id);
+    if (error) return toast.error(error.message);
+    toast.success(`User ${newStatus}`);
+    load();
   };
 
   const toggleBlock = async () => {
@@ -119,21 +135,39 @@ export default function UserDetail() {
             <div>
               <Label>Balance (USD)</Label>
               <Input type="number" value={user.balance ?? 0} onChange={(e) => setUser({ ...user, balance: e.target.value })} />
-              <Button className="mt-2" size="sm" onClick={saveBalance}>Save Balance</Button>
+              <div className="mt-2 space-y-2">
+                <Select value={creditNote} onValueChange={(v: any) => setCreditNote(v)}>
+                  <SelectTrigger className="max-w-[200px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="profit">Notify as: Profit added</SelectItem>
+                    <SelectItem value="deposit">Notify as: Deposit/credit</SelectItem>
+                  </SelectContent>
+                </Select>
+                <label className="flex items-center gap-2 text-xs">
+                  <Checkbox checked={emailOnCredit} onCheckedChange={(v) => setEmailOnCredit(v === true)} />
+                  Send email notification on save
+                </label>
+                <Button size="sm" onClick={saveBalance}>Save Balance</Button>
+              </div>
             </div>
             <div>
               <Label>Status</Label>
               <div className="mt-1"><StatusBadge status={user.status} /></div>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={toggleBlock}>
               {user.status === "blocked" ? <><CheckCircle2 className="mr-2 h-4 w-4" />Unblock</> : <><Ban className="mr-2 h-4 w-4" />Block User</>}
+            </Button>
+            <Button variant="outline" onClick={toggleSuspend}>
+              {user.status === "suspended" ? <><CheckCircle2 className="mr-2 h-4 w-4" />Reactivate</> : <><AlertTriangle className="mr-2 h-4 w-4" />Suspend User</>}
             </Button>
             <Button variant="destructive" onClick={del}><Trash2 className="mr-2 h-4 w-4" />Delete User</Button>
           </div>
         </CardContent>
       </Card>
+
+      <AccountCodesCard userId={user.id} />
 
       <Card>
         <CardHeader><CardTitle>Account Badge</CardTitle></CardHeader>
