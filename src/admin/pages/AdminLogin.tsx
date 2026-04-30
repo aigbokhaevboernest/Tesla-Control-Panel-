@@ -13,9 +13,10 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const checkAdminRole = async () => {
+  const checkAdminRole = async (accessToken?: string) => {
     const { data, error } = await supabase.functions.invoke<{ isAdmin: boolean }>("admin-check", {
       body: {},
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
     });
 
     if (error) throw error;
@@ -28,7 +29,7 @@ export default function AdminLogin() {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session?.user) return;
       try {
-        if (await checkAdminRole()) {
+        if (await checkAdminRole(session.access_token)) {
           navigate("/admin/dashboard", { replace: true });
         }
       } catch {
@@ -46,7 +47,7 @@ export default function AdminLogin() {
         toast.error(error?.message ?? "Sign in failed");
         return;
       }
-      const isAdmin = await checkAdminRole();
+      const isAdmin = await checkAdminRole(data.session?.access_token);
 
       if (!isAdmin) {
         await supabase.auth.signOut({ scope: "local" });
