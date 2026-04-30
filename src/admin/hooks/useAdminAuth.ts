@@ -37,7 +37,7 @@ export function useAdminAuth(redirectIfNot = true) {
       const isAdmin = !!data && !error;
       if (active) setState({ loading: false, isAdmin, userId, email });
       if (!isAdmin && redirectIfNot) {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: "local" });
         navigate("/admin/login", { replace: true });
       }
     };
