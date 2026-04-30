@@ -70,13 +70,19 @@ export default function AdminDashboard() {
         .delete()
         .eq("user_id", u.id)
         .eq("role", "admin");
-      if (error) return toast.error(error.message);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
       toast.success(`${u.email} is now a user`);
     } else {
       const { error } = await supabase
         .from("user_roles")
         .insert({ user_id: u.id, role: "admin" });
-      if (error) return toast.error(error.message);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
       toast.success(`${u.email} is now an admin`);
     }
     load();
@@ -86,7 +92,10 @@ export default function AdminDashboard() {
     const { error } = await supabase.functions.invoke("admin-delete-user", {
       body: { user_id: u.id },
     });
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success(`Deleted ${u.email}`);
     load();
   };
