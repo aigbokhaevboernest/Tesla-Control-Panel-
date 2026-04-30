@@ -130,6 +130,9 @@ export default function UsersList({ statusFilter }: { statusFilter?: string }) {
                         <DropdownMenuItem onClick={() => blockToggle(u)}>
                           {u.status === "blocked" ? <><CheckCircle2 className="mr-2 h-4 w-4" />Unblock</> : <><Ban className="mr-2 h-4 w-4" />Block</>}
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => suspendToggle(u)}>
+                          {u.status === "suspended" ? <><CheckCircle2 className="mr-2 h-4 w-4" />Reactivate</> : <><AlertTriangle className="mr-2 h-4 w-4" />Suspend</>}
+                        </DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onClick={() => del(u)}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
