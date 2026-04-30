@@ -27,14 +27,11 @@ export function useAdminAuth(redirectIfNot = true) {
         if (redirectIfNot) navigate("/admin/login", { replace: true });
         return;
       }
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .eq("role", "admin")
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke<{ isAdmin: boolean }>("admin-check", {
+        body: {},
+      });
 
-      const isAdmin = !!data && !error;
+      const isAdmin = data?.isAdmin === true && !error;
       if (active) setState({ loading: false, isAdmin, userId, email });
       if (!isAdmin && redirectIfNot) {
         await supabase.auth.signOut({ scope: "local" });
