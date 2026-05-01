@@ -71,23 +71,3 @@ export function useAdminAuth(redirectIfNot = true) {
 
   return state;
 }
-try {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .maybeSingle();
-
-  console.log("USER ID:", userId);
-  console.log("PROFILE DATA:", data);
-  console.log("PROFILE ERROR:", error);
-
-  const isAdmin = data?.role === "admin";
-
-if (error) {
-  console.error("Supabase error:", error);
-}
-
-if (redirectIfNot) navigate("/admin/login")  
-
-  
