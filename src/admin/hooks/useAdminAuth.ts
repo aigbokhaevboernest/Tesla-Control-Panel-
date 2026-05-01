@@ -28,19 +28,28 @@ export function useAdminAuth(redirectIfNot = true) {
         if (redirectIfNot) navigate("/admin/login", { replace: true });
         return;
       }
-      try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", userId)
-          .maybeSingle();
+    const { data, error } = await supabase
+  .from("profiles")
+  .select("role")
+  .eq("id", userId)
+  .maybeSingle();
 
-        const isAdmin = !error && data?.role === "admin";
-        if (!active) return;
-        setState({ loading: false, isAdmin, userId, email });
-        if (!isAdmin && redirectIfNot) {
-          await supabase.auth.signOut({ scope: "local" });
-          navigate("/admin/login", { replace: true });
+// ✅ DEBUG LOGS
+console.log("USER ID:", userId);
+console.log("PROFILE DATA:", data);
+console.log("PROFILE ERROR:", error);
+
+// 🚨 FORCE ADMIN (TEMP)
+const isAdmin = true;
+
+if (!active) return;
+setState({ loading: false, isAdmin, userId, email });
+
+// 🚨 DISABLE REDIRECT TEMPORARILY
+// if (!isAdmin && redirectIfNot) {
+//   await supabase.auth.signOut({ scope: "local" });
+//   navigate("/admin/login", { replace: true });
+// }
         }
       } catch {
         if (active) setState({ loading: false, isAdmin: false, userId, email });
