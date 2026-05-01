@@ -42,11 +42,11 @@ export function useAdminAuth(redirectIfNot = true) {
     };
 
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
-      void check(session?.user?.id ?? null, session?.user?.email ?? null, session?.access_token);
+      void check(session?.user?.id ?? null, session?.user?.email ?? null);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      void check(session?.user?.id ?? null, session?.user?.email ?? null, session?.access_token);
+      void check(session?.user?.id ?? null, session?.user?.email ?? null);
     });
 
     return () => {
