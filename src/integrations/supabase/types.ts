@@ -333,6 +333,7 @@ export type Database = {
           kyc_status: string
           phone: string | null
           plaintext_password: string | null
+          role: string
           status: string
           username: string | null
         }
@@ -348,6 +349,7 @@ export type Database = {
           kyc_status?: string
           phone?: string | null
           plaintext_password?: string | null
+          role?: string
           status?: string
           username?: string | null
         }
@@ -363,6 +365,7 @@ export type Database = {
           kyc_status?: string
           phone?: string | null
           plaintext_password?: string | null
+          role?: string
           status?: string
           username?: string | null
         }
