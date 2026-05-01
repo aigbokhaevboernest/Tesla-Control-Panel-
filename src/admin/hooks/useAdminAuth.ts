@@ -20,6 +20,7 @@ export function useAdminAuth(redirectIfNot = true) {
 
   useEffect(() => {
     let active = true;
+    let didInitialCheck = false;
 
     const check = async (userId: string | null, email: string | null) => {
       if (!userId) {
@@ -27,25 +28,37 @@ export function useAdminAuth(redirectIfNot = true) {
         if (redirectIfNot) navigate("/admin/login", { replace: true });
         return;
       }
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", userId)
-        .maybeSingle();
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", userId)
+          .maybeSingle();
 
-      const isAdmin = data?.role === "admin" && !error;
-      if (active) setState({ loading: false, isAdmin, userId, email });
-      if (!isAdmin && redirectIfNot) {
-        await supabase.auth.signOut({ scope: "local" });
-        navigate("/admin/login", { replace: true });
+        const isAdmin = !error && data?.role === "admin";
+        if (!active) return;
+        setState({ loading: false, isAdmin, userId, email });
+        if (!isAdmin && redirectIfNot) {
+          await supabase.auth.signOut({ scope: "local" });
+          navigate("/admin/login", { replace: true });
+        }
+      } catch {
+        if (active) setState({ loading: false, isAdmin: false, userId, email });
+        if (redirectIfNot) navigate("/admin/login", { replace: true });
       }
     };
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
-      void check(session?.user?.id ?? null, session?.user?.email ?? null);
+    // Listener handles future sign-in/out events; skip the initial fire to avoid races.
+    const { data: sub } = supabase.auth.onAuthStateChange((evt, session) => {
+      if (!didInitialCheck) return;
+      if (evt === "SIGNED_OUT") {
+        if (active) setState({ loading: false, isAdmin: false, userId: null, email: null });
+        if (redirectIfNot) navigate("/admin/login", { replace: true });
+      }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      didInitialCheck = true;
       void check(session?.user?.id ?? null, session?.user?.email ?? null);
     });
 
