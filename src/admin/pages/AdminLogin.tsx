@@ -13,14 +13,15 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const checkAdminRole = async (accessToken?: string) => {
-    const { data, error } = await supabase.functions.invoke<{ isAdmin: boolean }>("admin-check", {
-      body: {},
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-    });
+  const checkAdminRole = async (userId: string) => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .maybeSingle();
 
     if (error) throw error;
-    return data?.isAdmin === true;
+    return data?.role === "admin";
   };
 
   useEffect(() => {
@@ -29,7 +30,7 @@ export default function AdminLogin() {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session?.user) return;
       try {
-        if (await checkAdminRole(session.access_token)) {
+        if (await checkAdminRole(session.user.id)) {
           navigate("/admin/dashboard", { replace: true });
         }
       } catch {
@@ -47,11 +48,11 @@ export default function AdminLogin() {
         toast.error(error?.message ?? "Sign in failed");
         return;
       }
-      const isAdmin = await checkAdminRole(data.session?.access_token);
+      const isAdmin = await checkAdminRole(data.user.id);
 
       if (!isAdmin) {
         await supabase.auth.signOut({ scope: "local" });
-        toast.error("Access denied. Admins only.");
+        toast.error("Access denied");
         return;
       }
       navigate("/admin/dashboard", { replace: true });
