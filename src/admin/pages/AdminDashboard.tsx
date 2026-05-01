@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { useAdminAuth } from "../hooks/useAdminAuth";
 import { AdminNavbar } from "../components/AdminNavbar";
 import { UserTable, type AdminUserRow } from "../components/UserTable";

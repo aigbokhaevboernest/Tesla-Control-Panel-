@@ -1,7 +1,7 @@
 // Email notification helper — currently STUBBED.
 // Logs to email_log table when admin opts in via the "send email" tick.
 // Wire to a real provider later (Lovable Emails / Resend) without changing call sites.
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 
 export type EmailIntent =
   | "deposit_approved"
