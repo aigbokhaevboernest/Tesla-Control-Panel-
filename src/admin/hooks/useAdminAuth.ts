@@ -71,3 +71,7 @@ export function useAdminAuth(redirectIfNot = true) {
 
   return state;
 }
+
+console.log("USER ID:", userId)
+console.log("PROFILE DATA:", data)
+console.log("PROFILE ERROR:", error)
