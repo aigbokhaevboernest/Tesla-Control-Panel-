@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { useNavigate } from "react-router-dom";
 import { LogOut, ShieldCheck } from "lucide-react";
 
