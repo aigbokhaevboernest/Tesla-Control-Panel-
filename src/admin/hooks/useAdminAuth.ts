@@ -1,4 +1,4 @@
-console.log("APP LOADED");
+console.log("LOGIN FUNCTION TRIGGERED");
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
