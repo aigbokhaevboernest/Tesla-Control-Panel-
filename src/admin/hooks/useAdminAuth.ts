@@ -1,4 +1,3 @@
-console.log("LOGIN FUNCTION TRIGGERED");
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
@@ -29,28 +28,26 @@ export function useAdminAuth(redirectIfNot = true) {
         if (redirectIfNot) navigate("/admin/login", { replace: true });
         return;
       }
-    const { data, error } = await supabase
-  .from("profiles")
-  .select("role")
-  .eq("id", userId)
-  .maybeSingle();
 
-// ✅ DEBUG LOGS
-console.log("USER ID:", userId);
-console.log("PROFILE DATA:", data);
-console.log("PROFILE ERROR:", error);
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("user_id", userId)  // ← fixed from "id" to "user_id"
+          .maybeSingle();
 
-// 🚨 FORCE ADMIN (TEMP)
-const isAdmin = true;
+        console.log("USER ID:", userId);
+        console.log("PROFILE DATA:", data);
+        console.log("PROFILE ERROR:", error);
 
-if (!active) return;
-setState({ loading: false, isAdmin, userId, email });
+        const isAdmin = data?.role === "admin";  // ← real role check
 
-// 🚨 DISABLE REDIRECT TEMPORARILY
-// if (!isAdmin && redirectIfNot) {
-//   await supabase.auth.signOut({ scope: "local" });
-//   navigate("/admin/login", { replace: true });
-// }
+        if (!active) return;
+        setState({ loading: false, isAdmin, userId, email });
+
+        if (!isAdmin && redirectIfNot) {
+          await supabase.auth.signOut({ scope: "local" });
+          navigate("/admin/login", { replace: true });
         }
       } catch {
         if (active) setState({ loading: false, isAdmin: false, userId, email });
@@ -58,7 +55,6 @@ setState({ loading: false, isAdmin, userId, email });
       }
     };
 
-    // Listener handles future sign-in/out events; skip the initial fire to avoid races.
     const { data: sub } = supabase.auth.onAuthStateChange((evt, session) => {
       if (!didInitialCheck) return;
       if (evt === "SIGNED_OUT") {
