@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { notifyEmail } from "../lib/notifyEmail";
 
-type Wallet = "balance" | "profit_balance" | "deposit_balance";
+type Wallet = "total_balance" | "profit" | "deposit";
 
 export function BalanceModal({
   open, onOpenChange, user, onSaved,
@@ -132,7 +132,7 @@ export function BalanceModal({
 }
 
 const WALLET_LABEL: Record<Wallet, string> = {
-  balance: "Main Balance",
-  profit_balance: "Profit Balance",
-  deposit_balance: "Deposit Balance",
+  total_balance: "Main Balance",
+  profit: "Profit Balance",
+  depositcs: "Deposit Balance",
 };
