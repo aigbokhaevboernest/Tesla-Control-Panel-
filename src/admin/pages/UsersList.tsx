@@ -149,7 +149,8 @@ export default function UsersList({ statusFilter }: { statusFilter?: string }) {
                   <div className="mt-2 flex items-center justify-between gap-2">
                     <StatusBadge status={u.status} />
                     <span className="text-sm font-semibold tabular-nums">
-                      ${Number(u.balance || 0).toLocaleString()}
+${Number(u.total_balance || 0).toLocaleString()}
+
                     </span>
                   </div>
                 </div>
