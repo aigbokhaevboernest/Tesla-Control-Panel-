@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
     const { error } = await admin.auth.admin.updateUserById(user_id, { password: new_password });
     if (error) return json({ error: error.message }, 500);
 
-    await admin.from("profiles").update({ plaintext_password: new_password }).eq("id", user_id);
+    await admin.from("profiles").update({ plaintext_password: new_password }).eq("user_id", user_id);
 
     return json({ success: true }, 200);
   } catch (e) {
