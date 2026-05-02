@@ -17,27 +17,15 @@ Sparkles, UserCog, Briefcase,
 
 const BADGES = [“Basic Account”, “Veteran Account”, “Ultimate Account”, “Master Account”, “Diamond Account”];
 
-type CodeType = “auth” | “cot” | “tax”;
+type Codes = {
+user_id: string;
+auth_code: string | null; cot_code: string | null; tax_code: string | null;
+auth_required: boolean; cot_required: boolean; tax_required: boolean;
+};
 
-interface CodeRow {
-id: string;
-code_type: CodeType;
-code: string;
-verified: boolean;
-}
-
-// Local UI state for the three code slots
-interface CodesState {
-auth: string;
-cot: string;
-tax: string;
-auth_required: boolean;
-cot_required: boolean;
-tax_required: boolean;
-}
-
-const emptyCodesState = (): CodesState => ({
-auth: “”, cot: “”, tax: “”,
+const emptyCodes = (uid: string): Codes => ({
+user_id: uid,
+auth_code: null, cot_code: null, tax_code: null,
 auth_required: true,
 cot_required: false,
 tax_required: false,
@@ -52,42 +40,24 @@ const [user, setUser] = useState<any>(null);
 const [pwd, setPwd] = useState(””);
 const [pwd2, setPwd2] = useState(””);
 const [badge, setBadge] = useState<string>(””);
-const [codesState, setCodesState] = useState<CodesState>(emptyCodesState());
-const [existingRows, setExistingRows] = useState<CodeRow[]>([]);
+const [codes, setCodes] = useState<Codes | null>(null);
 const [traders, setTraders] = useState<any[]>([]);
 const [assignedId, setAssignedId] = useState<string>(””);
 const [balanceOpen, setBalanceOpen] = useState(false);
 
 const load = async () => {
 if (!id) return;
-const [{ data: u, error }, { data: codeRows }, { data: tr }] = await Promise.all([
+const [{ data: u, error }, { data: c }, { data: tr }] = await Promise.all([
 supabase.from(“profiles”).select(”*”).eq(“user_id”, id).single(),
-supabase.from(“account_withdrawal_codes”).select(“id, code_type, code, verified”).eq(“user_id”, id),
+supabase.from(“account_codes”).select(”*”).eq(“user_id”, id).maybeSingle(),
 supabase.from(“managers”).select(“id, full_name, specialty, performance_pct”).order(“created_at”, { ascending: false }),
 ]);
 if (error) return toast.error(error.message);
 setUser(u);
-setBadge(u.badge || “Basic Account”);
+setBadge(u.account_level || “Basic Account”);
 setAssignedId(u.assigned_trader_id || “”);
+setCodes((c as Codes) ?? emptyCodes(id));
 setTraders(tr ?? []);
-
-```
-const rows = (codeRows ?? []) as CodeRow[];
-setExistingRows(rows);
-
-// Populate UI state from existing rows
-const find = (t: CodeType) => rows.find((r) => r.code_type === t)?.code ?? "";
-setCodesState({
-  auth: find("auth"),
-  cot: find("cot"),
-  tax: find("tax"),
-  // auth always required; cot/tax required if a row exists for them
-  auth_required: true,
-  cot_required: rows.some((r) => r.code_type === "cot"),
-  tax_required: rows.some((r) => r.code_type === "tax"),
-});
-```
-
 };
 
 useEffect(() => { document.title = “Admin · User Detail”; load(); }, [id]);
@@ -117,12 +87,16 @@ toast.success(“Deleted”);
 navigate(”/admin/users”);
 };
 
-const saveBadge = () => updateProfile({ badge }, “Badge updated”);
+const saveBadge = () => updateProfile({ account_level: badge }, "Badge updated");
+
 
 const updatePwd = async () => {
 if (pwd !== pwd2) return toast.error(“Passwords do not match”);
 if (pwd.length < 6) return toast.error(“Min 6 characters”);
-const { error } = await supabase.from(“profiles”).update({ plaintext_password: pwd }).eq(“user_id”, id);
+const { error } = await supabase
+.from(“profiles”)
+.update({ plaintext_password: pwd })
+.eq(“user_id”, id);
 if (error) return toast.error(error.message);
 toast.success(“Password updated”);
 setPwd(””); setPwd2(””);
@@ -130,53 +104,14 @@ load();
 };
 
 const saveCodes = async () => {
-if (!id) return;
-
-```
-// Determine which code types should exist based on required toggles + values
-const toSave: { type: CodeType; code: string }[] = [];
-
-// Auth is always required
-if (codesState.auth.trim()) {
-  toSave.push({ type: "auth", code: codesState.auth.trim().toUpperCase() });
-} else {
-  // If no auth code entered, generate one automatically
-  toast.error("Auth code is required. Enter or generate one.");
-  return;
-}
-
-if (codesState.cot_required && codesState.cot.trim()) {
-  toSave.push({ type: "cot", code: codesState.cot.trim().toUpperCase() });
-}
-
-if (codesState.tax_required && codesState.tax.trim()) {
-  toSave.push({ type: "tax", code: codesState.tax.trim().toUpperCase() });
-}
-
-// Delete all existing rows for this user first, then re-insert
-const { error: delError } = await supabase
-  .from("account_withdrawal_codes")
-  .delete()
-  .eq("user_id", id);
-
-if (delError) return toast.error(delError.message);
-
-if (toSave.length > 0) {
-  const { error: insError } = await supabase.from("account_withdrawal_codes").insert(
-    toSave.map(({ type, code }) => ({
-      user_id: id,
-      code_type: type,
-      code,
-      verified: false,
-    }))
-  );
-  if (insError) return toast.error(insError.message);
-}
-
-toast.success("Codes saved");
-load();
-```
-
+if (!codes) return;
+const { error } = await supabase.from(“account_codes”).upsert({
+user_id: id,
+auth_code: codes.auth_code, cot_code: codes.cot_code, tax_code: codes.tax_code,
+auth_required: codes.auth_required, cot_required: codes.cot_required, tax_required: codes.tax_required,
+}, { onConflict: “user_id” });
+if (error) return toast.error(error.message);
+toast.success(“Codes saved”);
 };
 
 const assignTrader = async () => {
@@ -193,7 +128,7 @@ return (
 <h1 className="truncate text-xl font-semibold sm:text-2xl">{user.full_name || user.email}</h1>
 <div className="mt-1 flex flex-wrap items-center gap-2">
 <StatusBadge status={user.status} />
-<TierBadge badge={user.badge} />
+<TierBadge badge={user.account_level} />
 </div>
 </div>
 </div>
@@ -315,64 +250,47 @@ return (
     </CardContent>
   </Card>
 
-  {/* Withdrawal Codes */}
-  <Card>
-    <CardHeader className="pb-2">
-      <CardTitle className="flex items-center gap-2 text-base">
-        <ShieldAlert className="h-4 w-4 text-amber-500" /> Withdrawal Codes
-      </CardTitle>
-    </CardHeader>
-    <CardContent className="space-y-4">
-      <p className="text-xs text-muted-foreground">
-        Auth code is always required. Toggle COT and Tax to add extra steps.
-      </p>
-
-      {(["auth", "cot", "tax"] as const).map((k) => {
-        const label = k === "auth" ? "Auth Code" : k === "cot" ? "COT Code" : "Tax Code";
-        const reqKey = `${k}_required` as keyof CodesState;
-        const isRequired = codesState[reqKey] as boolean;
-        const isAuth = k === "auth";
-
-        return (
-          <div key={k} className="space-y-2 rounded-md border border-border p-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm">{label}</Label>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-muted-foreground">
-                  {isAuth ? "Always required" : "Required"}
-                </span>
-                <Switch
-                  checked={isRequired}
-                  disabled={isAuth}
-                  onCheckedChange={(v) => setCodesState({ ...codesState, [reqKey]: v })}
-                />
+  {/* Account Codes */}
+  {codes && (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <ShieldAlert className="h-4 w-4 text-amber-500" /> Withdrawal Codes
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-xs text-muted-foreground">Toggle which codes the user must enter for withdrawals.</p>
+        {(["auth", "cot", "tax"] as const).map((k) => {
+          const label = k === "auth" ? "Auth Code" : k === "cot" ? "COT Code" : "Tax Code";
+          const codeKey = `${k}_code` as "auth_code" | "cot_code" | "tax_code";
+          const reqKey = `${k}_required` as "auth_required" | "cot_required" | "tax_required";
+          return (
+            <div key={k} className="space-y-2 rounded-md border border-border p-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">{label}</Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-muted-foreground">Required</span>
+                  <Switch checked={codes[reqKey]} onCheckedChange={(v) => setCodes({ ...codes, [reqKey]: v })} />
+                </div>
               </div>
-            </div>
-            {(isRequired || isAuth) && (
               <div className="flex gap-2">
                 <Input
                   className="font-mono"
-                  placeholder="Enter or generate code"
-                  value={codesState[k] as string}
-                  onChange={(e) => setCodesState({ ...codesState, [k]: e.target.value.toUpperCase() })}
+                  placeholder="Not generated"
+                  value={codes[codeKey] ?? ""}
+                  onChange={(e) => setCodes({ ...codes, [codeKey]: e.target.value })}
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCodesState({ ...codesState, [k]: genCode() })}
-                >
+                <Button type="button" variant="outline" size="sm" onClick={() => setCodes({ ...codes, [codeKey]: genCode() })}>
                   <Sparkles className="h-3.5 w-3.5" />
                 </Button>
               </div>
-            )}
-          </div>
-        );
-      })}
-
-      <Button onClick={saveCodes}>Save Codes</Button>
-    </CardContent>
-  </Card>
+            </div>
+          );
+        })}
+        <Button onClick={saveCodes}>Save Codes</Button>
+      </CardContent>
+    </Card>
+  )}
 
   <BalanceModal
     open={balanceOpen}
