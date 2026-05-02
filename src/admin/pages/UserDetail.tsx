@@ -44,7 +44,7 @@ export default function UserDetail() {
   const load = async () => {
     if (!id) return;
     const [{ data: u, error }, { data: c }, { data: tr }] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", id).single(),
+      supabase.from("profiles").select("*").eq("user_id", id).single(),
       supabase.from("account_codes").select("*").eq("user_id", id).maybeSingle(),
       supabase.from("managers").select("id, full_name, specialty, performance_pct").order("created_at", { ascending: false }),
     ]);
@@ -61,7 +61,7 @@ export default function UserDetail() {
   if (!user) return <p className="text-muted-foreground">Loading…</p>;
 
   const updateProfile = async (patch: Record<string, any>, msg = "Saved") => {
-    const { error } = await supabase.from("profiles").update(patch as any).eq("id", user.id);
+    const { error } = await supabase.from("profiles").update(patch as any).eq("user_id", user.id);
     if (error) return toast.error(error.message);
     toast.success(msg);
     load();
