@@ -142,9 +142,9 @@ export default function UserDetail() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-2 text-center">
-            <BalanceCell label="Main" value={user.balance} accent="text-sky-500" />
-            <BalanceCell label="Profit" value={user.profit_balance} accent="text-emerald-500" />
-            <BalanceCell label="Deposit" value={user.deposit_balance} accent="text-amber-500" />
+            <BalanceCell label="Main" value={user.total_balance} accent="text-sky-500" />
+            <BalanceCell label="Profit" value={user.profit} accent="text-emerald-500" />
+            <BalanceCell label="Deposit" value={user.deposit} accent="text-amber-500" />
           </div>
         </CardContent>
       </Card>
