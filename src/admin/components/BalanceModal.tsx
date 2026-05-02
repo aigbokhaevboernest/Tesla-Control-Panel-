@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
-import { notifyEmail } from "../lib/notifyEmail";
 
 type Wallet = "total_balance" | "profit" | "deposit";
 
@@ -23,7 +22,6 @@ export function BalanceModal({
   const [type, setType] = useState<"credit" | "debit">("credit");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
-  const [notify, setNotify] = useState(true);
   const [busy, setBusy] = useState(false);
 
   if (!user) return null;
@@ -45,17 +43,6 @@ export function BalanceModal({
       .eq("user_id", user.user_id);
     setBusy(false);
     if (error) return toast.error(error.message);
-
-    if (notify) {
-      await notifyEmail({
-        send: true,
-        userId: user.user_id,
-        email: user.email,
-        intent: type === "credit" ? "balance_credited" : "withdrawal_made",
-        subject: `Your ${WALLET_LABEL[wallet]} was ${type === "credit" ? "credited" : "debited"}`,
-        body: `${type === "credit" ? "Credit" : "Debit"} of $${amt.toLocaleString()} on your ${WALLET_LABEL[wallet]}.${description ? `\n\nNote: ${description}` : ""}`,
-      });
-    }
 
     toast.success("Balance updated");
     setAmount(""); setDescription("");
@@ -112,15 +99,6 @@ export function BalanceModal({
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
-          <label className="flex items-center gap-2 text-xs text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={notify}
-              onChange={(e) => setNotify(e.target.checked)}
-              className="h-3.5 w-3.5"
-            />
-            Notify user by email
-          </label>
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
