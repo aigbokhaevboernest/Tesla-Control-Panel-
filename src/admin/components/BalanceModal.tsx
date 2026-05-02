@@ -37,9 +37,11 @@ export function BalanceModal({
     if (next < 0) return toast.error("Insufficient balance for debit");
 
     setBusy(true);
+    const patch: Record<string, number> = {};
+    patch[wallet] = next;
     const { error } = await supabase
       .from("profiles")
-      .update({ [wallet]: next })
+      .update(patch as any)
       .eq("id", user.id);
     setBusy(false);
     if (error) return toast.error(error.message);

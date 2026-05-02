@@ -61,7 +61,7 @@ export default function UserDetail() {
   if (!user) return <p className="text-muted-foreground">Loading…</p>;
 
   const updateProfile = async (patch: Record<string, any>, msg = "Saved") => {
-    const { error } = await supabase.from("profiles").update(patch).eq("id", user.id);
+    const { error } = await supabase.from("profiles").update(patch as any).eq("id", user.id);
     if (error) return toast.error(error.message);
     toast.success(msg);
     load();
