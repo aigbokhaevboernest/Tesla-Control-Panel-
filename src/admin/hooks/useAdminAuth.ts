@@ -33,7 +33,7 @@ export function useAdminAuth(redirectIfNot = true) {
         const { data } = await supabase
           .from("profiles")
           .select("role")
-          .eq("id", userId)
+          .eq("user_id", userId)  // ← fixed
           .maybeSingle();
 
         const isAdmin = data?.role === "admin";
@@ -68,7 +68,7 @@ export function useAdminAuth(redirectIfNot = true) {
       active = false;
       sub.subscription.unsubscribe();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-file react-hooks/exhaustive-deps
   }, []);
 
   return state;
