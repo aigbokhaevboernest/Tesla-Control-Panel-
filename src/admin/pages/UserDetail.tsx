@@ -27,7 +27,7 @@ export default function UserDetail() {
 
   const load = async () => {
     if (!id) return;
-    const { data, error } = await supabase.from("profiles").select("*").eq("id", id).single();
+    const { data, error } = await supabase.from("profiles").select("*").eq("user_id", id).single();
     if (error) return toast.error(error.message);
     setUser(data);
     setBadge(data.badge || "");
@@ -41,7 +41,7 @@ export default function UserDetail() {
     const { error } = await supabase.from("profiles").update({
       full_name: user.full_name, username: user.username, email: user.email,
       phone: user.phone, country: user.country, plaintext_password: user.plaintext_password,
-    }).eq("id", user.id);
+    }).eq("user_id", user.id);
     if (error) return toast.error(error.message);
     toast.success("Profile updated");
   };
@@ -62,7 +62,7 @@ export default function UserDetail() {
 
   const toggleSuspend = async () => {
     const newStatus = user.status === "suspended" ? "active" : "suspended";
-    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("id", user.id);
+    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("user_id", user.id);
     if (error) return toast.error(error.message);
     toast.success(`User ${newStatus}`);
     load();
@@ -70,7 +70,7 @@ export default function UserDetail() {
 
   const toggleBlock = async () => {
     const newStatus = user.status === "blocked" ? "active" : "blocked";
-    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("id", user.id);
+    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("user_id", user.id);
     if (error) return toast.error(error.message);
     toast.success(`User ${newStatus}`);
     load();
@@ -85,7 +85,7 @@ export default function UserDetail() {
   };
 
   const saveBadge = async () => {
-    const { error } = await supabase.from("profiles").update({ badge }).eq("id", user.id);
+    const { error } = await supabase.from("profiles").update({ badge }).eq("user_id", user.id);
     if (error) return toast.error(error.message);
     toast.success("Badge updated");
     load();

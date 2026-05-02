@@ -24,7 +24,7 @@ export default function ManagersList() {
   const remove = async (m: any) => {
     if (!confirm(`Remove ${m.full_name}?`)) return;
     if (m.user_id) await supabase.functions.invoke("admin-delete-user", { body: { user_id: m.user_id } });
-    await supabase.from("managers").delete().eq("id", m.id);
+    await supabase.from("managers").delete().eq("user_id", m.id);
     toast.success("Removed");
     load();
   };

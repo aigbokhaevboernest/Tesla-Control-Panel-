@@ -47,7 +47,7 @@ export default function UsersList({ statusFilter }: { statusFilter?: string }) {
 
   const blockToggle = async (u: any) => {
     const newStatus = u.status === "blocked" ? "active" : "blocked";
-    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("id", u.id);
+    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("user_id", u.id);
     if (error) return toast.error(error.message);
     toast.success(`User ${newStatus}`);
     load();
@@ -55,7 +55,7 @@ export default function UsersList({ statusFilter }: { statusFilter?: string }) {
 
   const suspendToggle = async (u: any) => {
     const newStatus = u.status === "suspended" ? "active" : "suspended";
-    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("id", u.id);
+    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("user_id", u.id);
     if (error) return toast.error(error.message);
     toast.success(`User ${newStatus}`);
     load();
