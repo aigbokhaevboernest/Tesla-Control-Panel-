@@ -30,17 +30,13 @@ export function useAdminAuth(redirectIfNot = true) {
       }
 
       try {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from("profiles")
           .select("role")
-          .eq("user_id", userId)  // ← fixed from "id" to "user_id"
+          .eq("id", userId)
           .maybeSingle();
 
-        console.log("USER ID:", userId);
-        console.log("PROFILE DATA:", data);
-        console.log("PROFILE ERROR:", error);
-
-        const isAdmin = data?.role === "admin";  // ← real role check
+        const isAdmin = data?.role === "admin";
 
         if (!active) return;
         setState({ loading: false, isAdmin, userId, email });

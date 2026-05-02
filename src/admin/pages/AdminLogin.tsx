@@ -17,7 +17,7 @@ export default function AdminLogin() {
     const { data, error } = await supabase
       .from("profiles")
       .select("role")
-      .eq("user_id", userId)
+      .eq("id", userId)
       .maybeSingle();
 
     if (error) throw error;

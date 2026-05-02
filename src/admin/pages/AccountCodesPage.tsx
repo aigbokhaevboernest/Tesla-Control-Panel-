@@ -1,31 +1,32 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Eye } from "lucide-react";
+import { Eye, ShieldAlert } from "lucide-react";
 
+// Lightweight index — withdrawal-code editing now lives inside each user's detail page.
 export default function AccountCodesPage() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
     setLoading(true);
-    const { data: profiles, error: pErr } = await supabase
+    const { data: profiles, error } = await supabase
       .from("profiles")
-      .select("user_id, full_name, email, username")  // ← id → user_id
+      .select("id, full_name, email, username")
       .order("created_at", { ascending: false });
-    if (pErr) { toast.error(pErr.message); setLoading(false); return; }
-    const { data: codes } = await supabase.from("account_withdrawal_codes").select("*");  // ← fixed table name
-    const map = new Map((codes ?? []).map((c) => [c.user_id, c]));
-    setRows((profiles ?? []).map((p) => ({ ...p, id: p.user_id, codes: map.get(p.user_id) })));  // ← map user_id to id
+    if (error) { toast.error(error.message); setLoading(false); return; }
+
+    const { data: codes } = await supabase.from("account_codes").select("*");
+    const map = new Map((codes ?? []).map((c: any) => [c.user_id, c]));
+    setRows((profiles ?? []).map((p: any) => ({ ...p, codes: map.get(p.id) })));
     setLoading(false);
   };
-
 
   useEffect(() => { document.title = "Admin · Account Codes"; load(); }, []);
 
@@ -38,56 +39,44 @@ export default function AccountCodesPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold">Account Codes</h1>
-        <p className="text-sm text-muted-foreground">Generate withdrawal codes (Auth, COT, Tax) per user</p>
+        <h1 className="text-xl font-semibold sm:text-2xl">Account Codes</h1>
+        <p className="text-xs text-muted-foreground sm:text-sm">Manage Auth / COT / Tax codes inside each user</p>
       </div>
-      <Card>
-        <CardContent className="p-4">
-          <Input placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} className="mb-4 max-w-xs" />
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Auth Code</TableHead>
-                <TableHead>COT Code</TableHead>
-                <TableHead>Tax Code</TableHead>
-                <TableHead>Required</TableHead>
-                <TableHead className="text-right">Manage</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Loading…</TableCell></TableRow>
-              ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No users</TableCell></TableRow>
-              ) : filtered.map((u) => {
-                const c = u.codes;
-                const reqs: string[] = [];
-                if (c?.auth_required) reqs.push("Auth");
-                if (c?.cot_required) reqs.push("COT");
-                if (c?.tax_required) reqs.push("Tax");
-                return (
-                  <TableRow key={u.id}>
-                    <TableCell>
-                      <p className="text-sm font-medium">{u.full_name || "—"}</p>
-                      <p className="text-xs text-muted-foreground">{u.email}</p>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">{c?.auth_code || "—"}</TableCell>
-                    <TableCell className="font-mono text-xs">{c?.cot_code || "—"}</TableCell>
-                    <TableCell className="font-mono text-xs">{c?.tax_code || "—"}</TableCell>
-                    <TableCell className="text-xs">{reqs.length ? reqs.join(", ") : <span className="text-muted-foreground">none</span>}</TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" variant="outline" asChild>
-                        <Link to={`/admin/users/${u.id}`}><Eye className="mr-1 h-3.5 w-3.5" /> Open</Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <Input placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} />
+      <div className="space-y-2">
+        {loading ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
+        ) : filtered.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">No users</p>
+        ) : filtered.map((u) => {
+          const c = u.codes;
+          const reqs: string[] = [];
+          if (c?.auth_required) reqs.push("Auth");
+          if (c?.cot_required) reqs.push("COT");
+          if (c?.tax_required) reqs.push("Tax");
+          return (
+            <Card key={u.id}>
+              <CardContent className="flex items-center justify-between gap-2 p-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-amber-500/10">
+                    <ShieldAlert className="h-4 w-4 text-amber-500" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{u.full_name || "—"}</p>
+                    <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Required: {reqs.length ? reqs.join(", ") : "none"}
+                    </p>
+                  </div>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => navigate(`/admin/users/${u.id}`)}>
+                  <Eye className="mr-1 h-3.5 w-3.5" /> Open
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }

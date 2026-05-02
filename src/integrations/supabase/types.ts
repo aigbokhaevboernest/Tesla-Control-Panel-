@@ -232,29 +232,44 @@ export type Database = {
       }
       managers: {
         Row: {
+          avatar_url: string | null
           created_at: string
           email: string
           full_name: string
           id: string
+          min_investment: number
+          performance_pct: number
+          profit_generated: number
           role: string
+          specialty: string | null
           status: string
           user_id: string | null
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           email: string
           full_name: string
           id?: string
+          min_investment?: number
+          performance_pct?: number
+          profit_generated?: number
           role?: string
+          specialty?: string | null
           status?: string
           user_id?: string | null
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           email?: string
           full_name?: string
           id?: string
+          min_investment?: number
+          performance_pct?: number
+          profit_generated?: number
           role?: string
+          specialty?: string | null
           status?: string
           user_id?: string | null
         }
@@ -322,49 +337,58 @@ export type Database = {
       }
       profiles: {
         Row: {
+          assigned_trader_id: string | null
           avatar_url: string | null
           badge: string | null
           balance: number
           country: string | null
           created_at: string
+          deposit_balance: number
           email: string | null
           full_name: string | null
           id: string
           kyc_status: string
           phone: string | null
           plaintext_password: string | null
+          profit_balance: number
           role: string
           status: string
           username: string | null
         }
         Insert: {
+          assigned_trader_id?: string | null
           avatar_url?: string | null
           badge?: string | null
           balance?: number
           country?: string | null
           created_at?: string
+          deposit_balance?: number
           email?: string | null
           full_name?: string | null
           id: string
           kyc_status?: string
           phone?: string | null
           plaintext_password?: string | null
+          profit_balance?: number
           role?: string
           status?: string
           username?: string | null
         }
         Update: {
+          assigned_trader_id?: string | null
           avatar_url?: string | null
           badge?: string | null
           balance?: number
           country?: string | null
           created_at?: string
+          deposit_balance?: number
           email?: string | null
           full_name?: string | null
           id?: string
           kyc_status?: string
           phone?: string | null
           plaintext_password?: string | null
+          profit_balance?: number
           role?: string
           status?: string
           username?: string | null
@@ -400,6 +424,8 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          routing_number: string | null
+          swift_code: string | null
           updated_at: string
         }
         Insert: {
@@ -409,6 +435,8 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          routing_number?: string | null
+          swift_code?: string | null
           updated_at?: string
         }
         Update: {
@@ -418,6 +446,8 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          routing_number?: string | null
+          swift_code?: string | null
           updated_at?: string
         }
         Relationships: []

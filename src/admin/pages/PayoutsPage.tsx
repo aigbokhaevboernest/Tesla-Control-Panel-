@@ -36,7 +36,7 @@ export default function PayoutsPage({ mode }: { mode: "pending" | "log" }) {
   useEffect(() => { document.title = mode === "pending" ? "Admin · Payout Requests" : "Admin · Payout Log"; load(); }, [mode, status, from, to]);
 
   const review = async (p: any, newStatus: string) => {
-    const { error } = await supabase.from("payouts").update({ status: newStatus }).eq("user_id", p.id);
+    const { error } = await supabase.from("payouts").update({ status: newStatus }).eq("id", p.id);
     if (error) return toast.error(error.message);
     if (newStatus === "paid") {
       const { error: bErr } = await supabase.functions.invoke("admin-balance", {
