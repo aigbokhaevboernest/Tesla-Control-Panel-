@@ -17,21 +17,14 @@ export default function AdminLogin() {
     const { data, error } = await supabase
       .from("profiles")
       .select("role")
-      .eq("user_id", userId)  // ← fixed
+      .eq("user_id", userId)
       .maybeSingle();
-
-    if (error) throw error;
-    return data?.role === "admin";
-  };
-
-
     if (error) throw error;
     return data?.role === "admin";
   };
 
   useEffect(() => {
     document.title = "Admin Login";
-    // If already an admin session, skip ahead
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session?.user) return;
       try {
@@ -54,7 +47,6 @@ export default function AdminLogin() {
         return;
       }
       const isAdmin = await checkAdminRole(data.user.id);
-
       if (!isAdmin) {
         await supabase.auth.signOut({ scope: "local" });
         toast.error("Access denied");
