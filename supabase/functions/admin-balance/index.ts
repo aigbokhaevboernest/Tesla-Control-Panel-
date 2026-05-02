@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     if (!user_id || typeof amount !== "number") return json({ error: "Invalid input" }, 400);
 
     if (action === "set") {
-      const { error } = await admin.from("profiles").update({ balance: amount }).eq("id", user_id);
+      const { error } = await admin.from("profiles").update({ balance: amount }).eq("user_id", user_id);
       if (error) return json({ error: error.message }, 500);
     } else if (action === "increment") {
       const { error } = await admin.rpc("increment_balance", { user_id, amount });
