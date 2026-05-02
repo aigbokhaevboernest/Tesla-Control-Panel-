@@ -18,15 +18,16 @@ export default function AccountCodesPage() {
     setLoading(true);
     const { data: profiles, error } = await supabase
       .from("profiles")
-      .select("id, full_name, email, username")
+      .select("user_id, full_name, email, username")  // ← id → user_id
       .order("created_at", { ascending: false });
     if (error) { toast.error(error.message); setLoading(false); return; }
 
     const { data: codes } = await supabase.from("account_codes").select("*");
     const map = new Map((codes ?? []).map((c: any) => [c.user_id, c]));
-    setRows((profiles ?? []).map((p: any) => ({ ...p, codes: map.get(p.id) })));
+    setRows((profiles ?? []).map((p: any) => ({ ...p, id: p.user_id, codes: map.get(p.user_id) })));  // ← map user_id to id
     setLoading(false);
   };
+
 
   useEffect(() => { document.title = "Admin · Account Codes"; load(); }, []);
 
