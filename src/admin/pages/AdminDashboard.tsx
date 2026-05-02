@@ -25,7 +25,7 @@ export default function AdminDashboard() {
     setLoading(true);
     const [{ data: profiles, error: pErr }, { data: roles, error: rErr }] =
       await Promise.all([
-        supabase.from("profiles").select("id, email, created_at").order("created_at", { ascending: false }),
+        supabase.from("profiles").select("user_id, email, created_at").order("created_at", { ascending: false }),
         supabase.from("user_roles").select("user_id, role"),
       ]);
     if (pErr || rErr) {
@@ -40,14 +40,15 @@ export default function AdminDashboard() {
     });
     setUsers(
       (profiles ?? []).map((p) => ({
-        id: p.id,
+        id: p.user_id,  // ← fixed
         email: p.email,
         created_at: p.created_at,
-        role: roleMap.get(p.id) ?? "user",
+        role: roleMap.get(p.user_id) ?? "user",  // ← fixed
       })),
     );
     setLoading(false);
   };
+
 
   useEffect(() => {
     if (isAdmin) load();
