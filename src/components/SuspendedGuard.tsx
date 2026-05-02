@@ -14,7 +14,7 @@ export function SuspendedGuard({ children }: { children: React.ReactNode }) {
     let active = true;
     const check = async (uid: string | null) => {
       if (!uid) { if (active) { setSuspended(false); setLoading(false); } return; }
-      const { data } = await supabase.from("profiles").select("status").eq("id", uid).maybeSingle();
+      const { data } = await supabase.from("profiles").select("status").eq("user_id", uid).maybeSingle();
       if (active) {
         setSuspended(data?.status === "suspended");
         setLoading(false);
