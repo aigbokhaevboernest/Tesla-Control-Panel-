@@ -54,7 +54,7 @@ export default function UserDetail() {
     ]);
     if (error) return toast.error(error.message);
     setUser(u);
-    setBadge(u.account_level || "Basic Account");
+    setBadge(u.badge || "Basic Account");
     setAssignedId(u.assigned_trader_id || "");
     setCodes((c as Codes) ?? emptyCodes(id));
     setTraders(tr ?? []);
@@ -62,7 +62,7 @@ export default function UserDetail() {
 
   useEffect(() => { document.title = "Admin · User Detail"; load(); }, [id]);
 
-  if (!user) return <p className="text-muted-foreground">Loading...</p>;
+  if (!user) return <p className="text-muted-foreground">Loading…</p>;
 
   const updateProfile = async (patch: Record<string, any>, msg = "Saved") => {
     const { error } = await supabase.from("profiles").update(patch as any).eq("user_id", id);
@@ -87,7 +87,7 @@ export default function UserDetail() {
     navigate("/admin/users");
   };
 
-  const saveBadge = () => updateProfile({ account_level: badge }, "Badge updated");
+  const saveBadge = () => updateProfile({ badge }, "Badge updated");
 
   const updatePwd = async () => {
     if (pwd !== pwd2) return toast.error("Passwords do not match");
@@ -127,11 +127,12 @@ export default function UserDetail() {
           <h1 className="truncate text-xl font-semibold sm:text-2xl">{user.full_name || user.email}</h1>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <StatusBadge status={user.status} />
-            <TierBadge badge={user.account_level} />
+            <TierBadge badge={user.badge} />
           </div>
         </div>
       </div>
 
+      {/* Balances */}
       <Card>
         <CardHeader className="pb-2 flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -141,13 +142,14 @@ export default function UserDetail() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-2 text-center">
-            <BalanceCell label="Main" value={user.total_balance} accent="text-sky-500" />
-            <BalanceCell label="Profit" value={user.profit} accent="text-emerald-500" />
-            <BalanceCell label="Deposit" value={user.deposit} accent="text-amber-500" />
+            <BalanceCell label="Main" value={user.balance} accent="text-sky-500" />
+            <BalanceCell label="Profit" value={user.profit_balance} accent="text-emerald-500" />
+            <BalanceCell label="Deposit" value={user.deposit_balance} accent="text-amber-500" />
           </div>
         </CardContent>
       </Card>
 
+      {/* Profile Info */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -167,6 +169,7 @@ export default function UserDetail() {
         </CardContent>
       </Card>
 
+      {/* Status */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Account Status</CardTitle>
@@ -190,6 +193,7 @@ export default function UserDetail() {
         </CardContent>
       </Card>
 
+      {/* Assign Trader */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -200,7 +204,7 @@ export default function UserDetail() {
           <Select value={assignedId || "none"} onValueChange={(v) => setAssignedId(v === "none" ? "" : v)}>
             <SelectTrigger><SelectValue placeholder="No trader assigned" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">-- None --</SelectItem>
+              <SelectItem value="none">— None —</SelectItem>
               {traders.map((t) => (
                 <SelectItem key={t.id} value={t.id}>
                   {t.full_name}{t.specialty ? ` · ${t.specialty}` : ""}{t.performance_pct ? ` · ${t.performance_pct}%` : ""}
@@ -212,6 +216,7 @@ export default function UserDetail() {
         </CardContent>
       </Card>
 
+      {/* Badge */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Account Badge</CardTitle>
@@ -229,6 +234,7 @@ export default function UserDetail() {
         </CardContent>
       </Card>
 
+      {/* Password */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -242,6 +248,7 @@ export default function UserDetail() {
         </CardContent>
       </Card>
 
+      {/* Account Codes */}
       {codes && (
         <Card>
           <CardHeader className="pb-2">
