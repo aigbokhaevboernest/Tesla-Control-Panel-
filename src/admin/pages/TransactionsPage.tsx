@@ -46,7 +46,7 @@ export default function TransactionsPage() {
 
   const review = async (tx: Tx, newStatus: string) => {
     const table = tx.type === "Deposit" ? "deposits" : "payouts";
-    const { error } = await supabase.from(table).update({ status: newStatus }).eq("user_id", tx.id);
+    const { error } = await supabase.from(table).update({ status: newStatus }).eq("id", tx.id);
     if (error) return toast.error(error.message);
     if (tx.type === "Deposit" && newStatus === "approved") {
       await supabase.functions.invoke("admin-balance", {

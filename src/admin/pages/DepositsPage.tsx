@@ -36,7 +36,7 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
   useEffect(() => { document.title = mode === "pending" ? "Admin · Deposit Requests" : "Admin · Payment Log"; load(); }, [mode, status, from, to]);
 
   const review = async (d: any, newStatus: string) => {
-    const { error } = await supabase.from("deposits").update({ status: newStatus }).eq("user_id", d.id);
+    const { error } = await supabase.from("deposits").update({ status: newStatus }).eq("id", d.id);
     if (error) return toast.error(error.message);
     if (newStatus === "approved") {
       const { error: bErr } = await supabase.functions.invoke("admin-balance", {

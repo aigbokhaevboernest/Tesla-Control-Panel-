@@ -24,7 +24,7 @@ export default function PlansPage() {
   useEffect(() => { document.title = "Admin · Plans"; load(); }, []);
 
   const toggleActive = async (p: any) => {
-    const { error } = await supabase.from("investment_plans").update({ is_active: !p.is_active }).eq("user_id", p.id);
+    const { error } = await supabase.from("investment_plans").update({ is_active: !p.is_active }).eq("id", p.id);
     if (error) return toast.error(error.message);
     load();
   };
@@ -41,7 +41,7 @@ export default function PlansPage() {
 
   const remove = async (p: any) => {
     if (!confirm(`Delete ${p.name}?`)) return;
-    const { error } = await supabase.from("investment_plans").delete().eq("user_id", p.id);
+    const { error } = await supabase.from("investment_plans").delete().eq("id", p.id);
     if (error) return toast.error(error.message);
     toast.success("Deleted");
     load();
