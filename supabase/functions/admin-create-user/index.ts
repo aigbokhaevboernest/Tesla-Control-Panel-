@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
     // Update profile
     await admin.from("profiles").update({
       full_name, plaintext_password: password, status: "active",
-    }).eq("id", created.user.id);
+    }).eq("user_id", created.user.id);
 
     // Insert into managers table
     const { error: mErr } = await admin.from("managers").insert({
