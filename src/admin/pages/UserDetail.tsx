@@ -38,27 +38,31 @@ export default function UserDetail() {
   if (!user) return <p className="text-muted-foreground">Loading…</p>;
 
   const saveProfile = async () => {
-    const { error } = await supabase.from("profiles").update({
-      full_name: user.full_name, username: user.username, email: user.email,
-      phone: user.phone, country: user.country, plaintext_password: user.plaintext_password,
-    }).eq("user_id", user.id);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        full_name: user.full_name,
+        username: user.username,
+        email: user.email,
+        phone: user.phone,
+        country: user.country,
+        plaintext_password: user.plaintext_password,
+      })
+      .eq("user_id", user.user_id);
     if (error) return toast.error(error.message);
     toast.success("Profile updated");
-  };
+};
+
 
   const saveBalance = async () => {
-    const { error } = await supabase.functions.invoke("admin-balance", {
-      body: { user_id: user.id, action: "set", amount: Number(user.balance) },
-    });
+    const { error } = await supabase
+      .from("profiles")
+      .update({ balance: Number(user.balance) })
+      .eq("user_id", user.user_id);
     if (error) return toast.error(error.message);
-    await notifyEmail({
-      send: emailOnCredit, userId: user.id, email: user.email,
-      intent: creditNote === "profit" ? "profit_added" : "balance_credited",
-      subject: creditNote === "profit" ? "Profit added to your account" : "Your balance has been updated",
-      body: `Your new balance is $${Number(user.balance).toLocaleString()}.`,
-    });
     toast.success("Balance updated");
-  };
+};
+
 
   const toggleSuspend = async () => {
     const newStatus = user.status === "suspended" ? "active" : "suspended";
@@ -85,23 +89,28 @@ export default function UserDetail() {
   };
 
   const saveBadge = async () => {
-    const { error } = await supabase.from("profiles").update({ badge }).eq("user_id", user.id);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ badge })
+      .eq("user_id", user.user_id);
     if (error) return toast.error(error.message);
     toast.success("Badge updated");
     load();
-  };
+};
+
 
   const updatePwd = async () => {
     if (pwd !== pwd2) return toast.error("Passwords do not match");
     if (pwd.length < 6) return toast.error("Min 6 characters");
-    const { error } = await supabase.functions.invoke("admin-update-password", {
-      body: { user_id: user.id, new_password: pwd },
-    });
+    const { error } = await supabase
+      .from("profiles")
+      .update({ plaintext_password: pwd })
+      .eq("user_id", user.user_id);
     if (error) return toast.error(error.message);
-    toast.success("Password updated");
+    toast.success("Password saved");
     setPwd(""); setPwd2("");
-    load();
-  };
+};
+
 
   return (
     <div className="space-y-6 max-w-4xl">
