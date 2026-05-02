@@ -167,7 +167,7 @@ export default function UserDetail() {
         </CardContent>
       </Card>
 
-      <AccountCodesCard userId={user.id} />
+<AccountCodesCard userId={user.user_id} />
 
       <Card>
         <CardHeader><CardTitle>Account Badge</CardTitle></CardHeader>
