@@ -1,10 +1,3 @@
-if (error) throw error;
-    return data?.role === "admin";
-  };
-
-
-Replace the entire file with this clean version:
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
