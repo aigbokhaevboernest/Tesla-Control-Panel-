@@ -40,7 +40,7 @@ export default function BankInfoPage() {
     if (editing.id) {
       const { error } = await supabase.from("withdrawal_bank_info").update({
         bank_name, account_number, account_name, is_active: editing.is_active ?? true,
-      }).eq("id", editing.id);
+      }).eq("user_id", editing.id);
       if (error) return toast.error(error.message);
       toast.success("Bank updated");
     } else {
@@ -56,7 +56,7 @@ export default function BankInfoPage() {
 
   const del = async (id: string) => {
     if (!confirm("Delete this bank?")) return;
-    const { error } = await supabase.from("withdrawal_bank_info").delete().eq("id", id);
+    const { error } = await supabase.from("withdrawal_bank_info").delete().eq("user_id", id);
     if (error) return toast.error(error.message);
     toast.success("Deleted");
     load();
@@ -66,7 +66,7 @@ export default function BankInfoPage() {
     const { error } = await supabase
       .from("withdrawal_bank_info")
       .update({ is_active: !b.is_active })
-      .eq("id", b.id);
+      .eq("user_id", b.id);
     if (error) return toast.error(error.message);
     load();
   };
