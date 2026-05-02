@@ -62,7 +62,7 @@ export default function UserDetail() {
 
   const toggleSuspend = async () => {
     const newStatus = user.status === "suspended" ? "active" : "suspended";
-    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("user_id", user.id);
+    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("user_id", user.user_id);
     if (error) return toast.error(error.message);
     toast.success(`User ${newStatus}`);
     load();
@@ -70,7 +70,7 @@ export default function UserDetail() {
 
   const toggleBlock = async () => {
     const newStatus = user.status === "blocked" ? "active" : "blocked";
-    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("user_id", user.id);
+    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("user_id", user.user_id);
     if (error) return toast.error(error.message);
     toast.success(`User ${newStatus}`);
     load();
