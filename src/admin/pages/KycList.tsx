@@ -29,9 +29,9 @@ export default function KycList() {
   useEffect(() => { document.title = "Admin · KYC"; load(); }, []);
 
   const review = async (row: any, status: "approved" | "rejected") => {
-    const { error } = await supabase.from("kyc_submissions").update({ status }).eq("id", row.id);
+    const { error } = await supabase.from("kyc_submissions").update({ status }).eq("user_id", row.id);
     if (error) return toast.error(error.message);
-    await supabase.from("profiles").update({ kyc_status: status }).eq("id", row.user_id);
+    await supabase.from("profiles").update({ kyc_status: status }).eq("user_id", row.user_id);
     await notifyEmail({
       send: sendEmail, userId: row.user_id, email: row.profiles?.email,
       intent: status === "approved" ? "kyc_approved" : "kyc_rejected",
