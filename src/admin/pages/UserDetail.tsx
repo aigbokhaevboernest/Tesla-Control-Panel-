@@ -22,11 +22,15 @@ type Codes = {
   auth_code: string | null; cot_code: string | null; tax_code: string | null;
   auth_required: boolean; cot_required: boolean; tax_required: boolean;
 };
+
 const emptyCodes = (uid: string): Codes => ({
   user_id: uid,
   auth_code: null, cot_code: null, tax_code: null,
-  auth_required: false, cot_required: false, tax_required: false,
+  auth_required: true,
+  cot_required: false,
+  tax_required: false,
 });
+
 const genCode = () => Math.random().toString(36).slice(2, 10).toUpperCase();
 
 export default function UserDetail() {
@@ -50,7 +54,7 @@ export default function UserDetail() {
     ]);
     if (error) return toast.error(error.message);
     setUser(u);
-    setBadge(u.badge || "");
+    setBadge(u.badge || "Basic Account");
     setAssignedId(u.assigned_trader_id || "");
     setCodes((c as Codes) ?? emptyCodes(id));
     setTraders(tr ?? []);
@@ -61,7 +65,7 @@ export default function UserDetail() {
   if (!user) return <p className="text-muted-foreground">Loading…</p>;
 
   const updateProfile = async (patch: Record<string, any>, msg = "Saved") => {
-    const { error } = await supabase.from("profiles").update(patch as any).eq("user_id", user.id);
+    const { error } = await supabase.from("profiles").update(patch as any).eq("user_id", id);
     if (error) return toast.error(error.message);
     toast.success(msg);
     load();
@@ -77,7 +81,7 @@ export default function UserDetail() {
 
   const del = async () => {
     if (!confirm(`Delete ${user.email}? Permanent.`)) return;
-    const { error } = await supabase.functions.invoke("admin-delete-user", { body: { user_id: user.id } });
+    const { error } = await supabase.functions.invoke("admin-delete-user", { body: { user_id: id } });
     if (error) return toast.error(error.message);
     toast.success("Deleted");
     navigate("/admin/users");
@@ -88,9 +92,10 @@ export default function UserDetail() {
   const updatePwd = async () => {
     if (pwd !== pwd2) return toast.error("Passwords do not match");
     if (pwd.length < 6) return toast.error("Min 6 characters");
-    const { error } = await supabase.functions.invoke("admin-update-password", {
-      body: { user_id: user.id, new_password: pwd },
-    });
+    const { error } = await supabase
+      .from("profiles")
+      .update({ plaintext_password: pwd })
+      .eq("user_id", id);
     if (error) return toast.error(error.message);
     toast.success("Password updated");
     setPwd(""); setPwd2("");
@@ -100,7 +105,7 @@ export default function UserDetail() {
   const saveCodes = async () => {
     if (!codes) return;
     const { error } = await supabase.from("account_codes").upsert({
-      user_id: user.id,
+      user_id: id,
       auth_code: codes.auth_code, cot_code: codes.cot_code, tax_code: codes.tax_code,
       auth_required: codes.auth_required, cot_required: codes.cot_required, tax_required: codes.tax_required,
     }, { onConflict: "user_id" });
@@ -146,7 +151,11 @@ export default function UserDetail() {
 
       {/* Profile Info */}
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-base"><UserCog className="h-4 w-4 text-violet-500" /> Profile Info</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <UserCog className="h-4 w-4 text-violet-500" /> Profile Info
+          </CardTitle>
+        </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
           <Field label="Full Name" value={user.full_name} onChange={(v) => setUser({ ...user, full_name: v })} />
           <Field label="Username" value={user.username} onChange={(v) => setUser({ ...user, username: v })} />
@@ -154,13 +163,17 @@ export default function UserDetail() {
           <Field label="Phone" value={user.phone} onChange={(v) => setUser({ ...user, phone: v })} />
           <Field label="Country" value={user.country} onChange={(v) => setUser({ ...user, country: v })} />
           <Field label="Plaintext Password (visible)" value={user.plaintext_password} onChange={(v) => setUser({ ...user, plaintext_password: v })} />
-          <div className="sm:col-span-2"><Button onClick={saveProfile} className="w-full sm:w-auto">Save Profile</Button></div>
+          <div className="sm:col-span-2">
+            <Button onClick={saveProfile} className="w-full sm:w-auto">Save Profile</Button>
+          </div>
         </CardContent>
       </Card>
 
       {/* Status */}
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">Account Status</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Account Status</CardTitle>
+        </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={toggleBlock}>
@@ -182,7 +195,11 @@ export default function UserDetail() {
 
       {/* Assign Trader */}
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-base"><Briefcase className="h-4 w-4 text-fuchsia-500" /> Expert Trader</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Briefcase className="h-4 w-4 text-fuchsia-500" /> Expert Trader
+          </CardTitle>
+        </CardHeader>
         <CardContent className="space-y-3">
           <Select value={assignedId || "none"} onValueChange={(v) => setAssignedId(v === "none" ? "" : v)}>
             <SelectTrigger><SelectValue placeholder="No trader assigned" /></SelectTrigger>
@@ -201,10 +218,14 @@ export default function UserDetail() {
 
       {/* Badge */}
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">Account Badge</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Account Badge</CardTitle>
+        </CardHeader>
         <CardContent className="flex flex-col gap-2 sm:flex-row">
           <Select value={badge} onValueChange={setBadge}>
-            <SelectTrigger className="sm:max-w-xs"><SelectValue placeholder="Select Account Badge" /></SelectTrigger>
+            <SelectTrigger className="sm:max-w-xs">
+              <SelectValue placeholder="Select Account Badge" />
+            </SelectTrigger>
             <SelectContent>
               {BADGES.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
             </SelectContent>
@@ -215,7 +236,11 @@ export default function UserDetail() {
 
       {/* Password */}
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-base"><KeyRound className="h-4 w-4 text-yellow-500" /> Change Password</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <KeyRound className="h-4 w-4 text-yellow-500" /> Change Password
+          </CardTitle>
+        </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
           <div><Label>New Password</Label><Input type="text" value={pwd} onChange={(e) => setPwd(e.target.value)} /></div>
           <div><Label>Confirm Password</Label><Input type="text" value={pwd2} onChange={(e) => setPwd2(e.target.value)} /></div>
@@ -226,7 +251,11 @@ export default function UserDetail() {
       {/* Account Codes */}
       {codes && (
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-base"><ShieldAlert className="h-4 w-4 text-amber-500" /> Withdrawal Codes</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ShieldAlert className="h-4 w-4 text-amber-500" /> Withdrawal Codes
+            </CardTitle>
+          </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-xs text-muted-foreground">Toggle which codes the user must enter for withdrawals.</p>
             {(["auth", "cot", "tax"] as const).map((k) => {
@@ -288,3 +317,4 @@ function BalanceCell({ label, value, accent }: { label: string; value: any; acce
     </div>
   );
 }
+
