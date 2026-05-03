@@ -25,7 +25,7 @@ export default function UsersList({ statusFilter }: { statusFilter?: string }) {
     const { data, error } = await query;
     if (error) toast.error(error.message);
 
-    const ids = (data ?? []).map((p: any) => p.id);
+    const ids = (data ?? []).map((p: any) => p.user_id);
     let adminIds = new Set<string>();
     if (ids.length) {
       const { data: roles } = await supabase.from("user_roles").select("user_id, role").in("user_id", ids);
@@ -103,7 +103,7 @@ export default function UsersList({ statusFilter }: { statusFilter?: string }) {
         ) : filtered.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">No users</p>
         ) : filtered.map((u) => (
-          <Card key={u.id}>
+          <Card key={u.user_id}>
             <CardContent className="p-3">
               <div className="flex items-start gap-3">
                 <Avatar className="h-10 w-10 shrink-0">
@@ -125,7 +125,7 @@ export default function UsersList({ statusFilter }: { statusFilter?: string }) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem onClick={() => navigate(`/admin/users/${u.id}`)}>
+                        <DropdownMenuItem onClick={() => navigate(`/admin/users/${u.user_id}`)}>
                           <Eye className="mr-2 h-4 w-4 text-sky-500" /> View User
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
