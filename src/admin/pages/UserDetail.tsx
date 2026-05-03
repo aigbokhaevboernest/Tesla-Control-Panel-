@@ -1,21 +1,21 @@
-import { useEffect, useState } from “react”;
-import { useParams, useNavigate } from “react-router-dom”;
-import { supabase } from “@/lib/supabaseClient”;
-import { Card, CardContent, CardHeader, CardTitle } from “@/components/ui/card”;
-import { Input } from “@/components/ui/input”;
-import { Label } from “@/components/ui/label”;
-import { Button } from “@/components/ui/button”;
-import { Switch } from “@/components/ui/switch”;
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from “@/components/ui/select”;
-import { StatusBadge, TierBadge } from “../components/StatusBadge”;
-import { BalanceModal } from “../components/BalanceModal”;
-import { toast } from “sonner”;
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabaseClient";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { StatusBadge, TierBadge } from "../components/StatusBadge";
+import { BalanceModal } from "../components/BalanceModal";
+import { toast } from "sonner";
 import {
 Trash2, Ban, CheckCircle2, AlertTriangle, ArrowLeft, Wallet, KeyRound, ShieldAlert,
 Sparkles, UserCog, Briefcase,
-} from “lucide-react”;
+} from "lucide-react";
 
-const BADGES = [“Basic Account”, “Veteran Account”, “Ultimate Account”, “Master Account”, “Diamond Account”];
+const BADGES = ["Basic Account", "Veteran Account", "Ultimate Account", "Master Account", "Diamond Account"];
 
 type Codes = {
 user_id: string;
@@ -37,35 +37,35 @@ export default function UserDetail() {
 const { id } = useParams();
 const navigate = useNavigate();
 const [user, setUser] = useState<any>(null);
-const [pwd, setPwd] = useState(””);
-const [pwd2, setPwd2] = useState(””);
-const [badge, setBadge] = useState<string>(””);
+const [pwd, setPwd] = useState("");
+const [pwd2, setPwd2] = useState("");
+const [badge, setBadge] = useState<string>("");
 const [codes, setCodes] = useState<Codes | null>(null);
 const [traders, setTraders] = useState<any[]>([]);
-const [assignedId, setAssignedId] = useState<string>(””);
+const [assignedId, setAssignedId] = useState<string>("");
 const [balanceOpen, setBalanceOpen] = useState(false);
 
 const load = async () => {
 if (!id) return;
 const [{ data: u, error }, { data: c }, { data: tr }] = await Promise.all([
-supabase.from(“profiles”).select(”*”).eq(“user_id”, id).single(),
-supabase.from(“account_codes”).select(”*”).eq(“user_id”, id).maybeSingle(),
-supabase.from(“managers”).select(“id, full_name, specialty, performance_pct”).order(“created_at”, { ascending: false }),
+supabase.from("profiles").select("*").eq("user_id", id).single(),
+supabase.from("account_codes").select("*").eq("user_id", id).maybeSingle(),
+supabase.from("managers").select("id, full_name, specialty, performance_pct").order("created_at", { ascending: false }),
 ]);
 if (error) return toast.error(error.message);
 setUser(u);
-setBadge(u.badge || “Basic Account”);
-setAssignedId(u.assigned_trader_id || “”);
+setBadge(u.badge || "Basic Account");
+setAssignedId(u.assigned_trader_id || "");
 setCodes((c as Codes) ?? emptyCodes(id));
 setTraders(tr ?? []);
 };
 
-useEffect(() => { document.title = “Admin · User Detail”; load(); }, [id]);
+useEffect(() => { document.title = "Admin · User Detail"; load(); }, [id]);
 
 if (!user) return <p className="text-muted-foreground">Loading…</p>;
 
-const updateProfile = async (patch: Record<string, any>, msg = “Saved”) => {
-const { error } = await supabase.from(“profiles”).update(patch as any).eq(“user_id”, id);
+const updateProfile = async (patch: Record<string, any>, msg = "Saved") => {
+const { error } = await supabase.from("profiles").update(patch as any).eq("user_id", id);
 if (error) return toast.error(error.message);
 toast.success(msg);
 load();
@@ -74,54 +74,54 @@ load();
 const saveProfile = () => updateProfile({
 full_name: user.full_name, username: user.username, email: user.email,
 phone: user.phone, country: user.country, plaintext_password: user.plaintext_password,
-}, “Profile updated”);
+}, "Profile updated");
 
-const toggleSuspend = () => updateProfile({ status: user.status === “suspended” ? “active” : “suspended” }, “Status changed”);
-const toggleBlock = () => updateProfile({ status: user.status === “blocked” ? “active” : “blocked” }, “Status changed”);
+const toggleSuspend = () => updateProfile({ status: user.status === "suspended" ? "active" : "suspended" }, "Status changed");
+const toggleBlock = () => updateProfile({ status: user.status === "blocked" ? "active" : "blocked" }, "Status changed");
 
 const del = async () => {
 if (!confirm(`Delete ${user.email}? Permanent.`)) return;
-const { error } = await supabase.functions.invoke(“admin-delete-user”, { body: { user_id: id } });
+const { error } = await supabase.functions.invoke("admin-delete-user", { body: { user_id: id } });
 if (error) return toast.error(error.message);
-toast.success(“Deleted”);
-navigate(”/admin/users”);
+toast.success("Deleted");
+navigate("/admin/users");
 };
 
-const saveBadge = () => updateProfile({ badge }, “Badge updated”);
+const saveBadge = () => updateProfile({ badge }, "Badge updated");
 
 const updatePwd = async () => {
-if (pwd !== pwd2) return toast.error(“Passwords do not match”);
-if (pwd.length < 6) return toast.error(“Min 6 characters”);
+if (pwd !== pwd2) return toast.error("Passwords do not match");
+if (pwd.length < 6) return toast.error("Min 6 characters");
 const { error } = await supabase
-.from(“profiles”)
+.from("profiles")
 .update({ plaintext_password: pwd })
-.eq(“user_id”, id);
+.eq("user_id", id);
 if (error) return toast.error(error.message);
-toast.success(“Password updated”);
-setPwd(””); setPwd2(””);
+toast.success("Password updated");
+setPwd(""); setPwd2("");
 load();
 };
 
 const saveCodes = async () => {
 if (!codes) return;
-const { error } = await supabase.from(“account_withdrawal_codes”).upsert({
+const { error } = await supabase.from("account_withdrawal_codes").upsert({
 user_id: id,
 auth_code: codes.auth_code, cot_code: codes.cot_code, tax_code: codes.tax_code,
 auth_required: codes.auth_required, cot_required: codes.cot_required, tax_required: codes.tax_required,
-}, { onConflict: “user_id” });
+}, { onConflict: "user_id" });
 if (error) return toast.error(error.message);
-toast.success(“Codes saved”);
+toast.success("Codes saved");
 };
 
 const assignTrader = async () => {
-await updateProfile({ assigned_trader_id: assignedId || null }, “Trader assigned”);
+await updateProfile({ assigned_trader_id: assignedId || null }, "Trader assigned");
 };
 
 return (
 <div className="space-y-5">
 <div className="flex items-start justify-between gap-2">
 <div className="min-w-0">
-<Button variant=“ghost” size=“sm” className=”-ml-2 mb-1” onClick={() => navigate(-1)}>
+<Button variant="ghost" size="sm" className="-ml-2 mb-1" onClick={() => navigate(-1)}>
 <ArrowLeft className="mr-1 h-4 w-4" /> Back
 </Button>
 <h1 className="truncate text-xl font-semibold sm:text-2xl">{user.full_name || user.email}</h1>
@@ -307,7 +307,7 @@ function Field({ label, value, onChange }: { label: string; value: any; onChange
 return (
 <div>
 <Label>{label}</Label>
-<Input value={value ?? “”} onChange={(e) => onChange(e.target.value)} />
+<Input value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
 </div>
 );
 }
