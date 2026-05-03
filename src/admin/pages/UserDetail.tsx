@@ -17,11 +17,12 @@ Sparkles, UserCog, Briefcase,
 
 const BADGES = ["Basic Account", "Veteran Account", "Ultimate Account", "Master Account", "Diamond Account"];
 
-type Codes = {
-user_id: string;
-auth_code: string | null; cot_code: string | null; tax_code: string | null;
-auth_required: boolean; cot_required: boolean; tax_required: boolean;
-};
+const [codes, setCodes] = useState<Record<string, string>>({
+  auth: "", cot: "", tax: ""
+});
+const [codeToggles, setCodeToggles] = useState<Record<string, boolean>>({
+  auth: true, cot: false, tax: false
+});
 
 const emptyCodes = (uid: string): Codes => ({
 user_id: uid,
@@ -49,7 +50,27 @@ const load = async () => {
 if (!id) return;
 const [{ data: u, error }, { data: c }, { data: tr }] = await Promise.all([
 supabase.from("profiles").select("*").eq("user_id", id).single(),
-supabase.from("account_withdrawal_codes").select("*").eq("user_id", id).maybeSingle(),
+const [codes, setCodes] = useState<Record<string, string>>({
+  auth: "", cot: "", tax: ""
+});
+// ✅ Correct — fetch ALL rows for user
+const { data: c } = await supabase
+  .from("account_withdrawal_codes")
+  .select("*")
+  .eq("user_id", id);
+
+// Then parse into state
+const codeMap = { auth: "", cot: "", tax: "" };
+const toggleMap = { auth: true, cot: false, tax: false };
+if (c) {
+  c.forEach((row: any) => {
+    codeMap[row.code_type] = row.code;
+    toggleMap[row.code_type] = true;
+  });
+}
+setCodes(codeMap);
+setCodeToggles(toggleMap);
+
 supabase.from("expert_traders").select("id, full_name, specialty, performance_pct").order("created_at", { ascending: false }),
 ]);
 if (error) return toast.error(error.message);
@@ -104,11 +125,37 @@ load();
 
 const saveCodes = async () => {
 if (!codes) return;
-const { error } = await supabase.from("account_withdrawal_codes").upsert({
-user_id: id,
-auth_code: codes.auth_code, cot_code: codes.cot_code, tax_code: codes.tax_code,
-auth_required: codes.auth_required, cot_required: codes.cot_required, tax_required: codes.tax_required,
-}, { onConflict: "user_id" });
+const { error } = await // ✅ Correct — delete all then re-insert active codes
+const saveCodes = async () => {
+  // Delete all existing codes for this user
+  await supabase
+    .from("account_withdrawal_codes")
+    .delete()
+    .eq("user_id", id);
+
+  // Re-insert only toggled-on codes
+  const rows = (["auth", "cot", "tax"] as const)
+    .filter((k) => codeToggles[k] && codes[k].trim())
+    .map((k) => ({
+      user_id: id,
+      code_type: k,
+      code: codes[k].trim().toUpperCase(),
+      verified: false,
+    }));
+
+  if (rows.length === 0) {
+    toast.success("All codes cleared");
+    return;
+  }
+
+  const { error } = await supabase
+    .from("account_withdrawal_codes")
+    .insert(rows);
+
+  if (error) return toast.error(error.message);
+  toast.success("Codes saved");
+};
+
 if (error) return toast.error(error.message);
 toast.success("Codes saved");
 };
