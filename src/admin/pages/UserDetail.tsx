@@ -104,7 +104,7 @@ load();
 
 const saveCodes = async () => {
 if (!codes) return;
-const { error } = await supabase.from("account_withdrawal_codes").upsert({
+const { error } = await supabase.from("account_codes").upsert({
 user_id: id,
 auth_code: codes.auth_code, cot_code: codes.cot_code, tax_code: codes.tax_code,
 auth_required: codes.auth_required, cot_required: codes.cot_required, tax_required: codes.tax_required,

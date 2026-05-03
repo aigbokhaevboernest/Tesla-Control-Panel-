@@ -40,10 +40,10 @@ export default function AdminDashboard() {
     });
     setUsers(
       (profiles ?? []).map((p) => ({
-        id: p.user_id,  // ← fixed
+        id: p.id,
         email: p.email,
         created_at: p.created_at,
-        role: roleMap.get(p.user_id) ?? "user",  // ← fixed
+        role: roleMap.get(p.id) ?? "user",
       })),
     );
     setLoading(false);
