@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
-type Wallet = "balance" | "profit_balance" | "deposit_balance";
+type Wallet = "total_balance" | "profit" | "deposit";
 
 export function BalanceModal({
   open, onOpenChange, user, onSaved,
@@ -40,7 +40,7 @@ export function BalanceModal({
     const { error } = await supabase
       .from("profiles")
       .update(patch as any)
-      .eq("user_id", user.id);
+      .eq("user_id", user.user.id);
     setBusy(false);
     if (error) return toast.error(error.message);
 
