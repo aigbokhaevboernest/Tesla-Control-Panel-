@@ -53,7 +53,7 @@ export default function UsersList({ statusFilter }: { statusFilter?: string }) {
   }, [rows, search, status, statusFilter]);
 
   const setUserStatus = async (u: any, newStatus: string) => {
-    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("user_id", u.user_id);
+    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("id", u.id);
     if (error) return toast.error(error.message);
     toast.success(`User ${newStatus}`);
     load();
