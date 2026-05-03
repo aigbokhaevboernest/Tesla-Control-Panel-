@@ -15,7 +15,7 @@ export default function AdminLogin() {
 
   const checkAdminRole = async (userId: string) => {
     const { data, error } = await supabase
-      .from("profile")
+      .from("public")
       .select("user_roles")
       .eq("user_id", userId)
       .maybeSingle();
