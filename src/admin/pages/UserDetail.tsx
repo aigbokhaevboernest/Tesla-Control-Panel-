@@ -127,7 +127,7 @@ return (
 <h1 className="truncate text-xl font-semibold sm:text-2xl">{user.full_name || user.email}</h1>
 <div className="mt-1 flex flex-wrap items-center gap-2">
 <StatusBadge status={user.status} />
-<TierBadge badge={user.account_level} />
+<TierBadge badge={user.badge} />
 </div>
 </div>
 </div>
