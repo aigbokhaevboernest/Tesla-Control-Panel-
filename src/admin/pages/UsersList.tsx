@@ -31,7 +31,7 @@ export default function UsersList({ statusFilter }: { statusFilter?: string }) {
       const { data: roles } = await supabase.from("user_roles").select("user_id, role").in("user_id", ids);
       adminIds = new Set((roles ?? []).filter((r: any) => r.role === "admin").map((r: any) => r.user_id));
     }
-    setRows((data ?? []).filter((p: any) => !adminIds.has(p.id)));
+    setRows((data ?? []).filter((p: any) => !adminIds.has(p.user_id)));
     setLoading(false);
   };
 
@@ -53,7 +53,7 @@ export default function UsersList({ statusFilter }: { statusFilter?: string }) {
   }, [rows, search, status, statusFilter]);
 
   const setUserStatus = async (u: any, newStatus: string) => {
-    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("user_id", u.id);
+    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("user_id", u.user_id);
     if (error) return toast.error(error.message);
     toast.success(`User ${newStatus}`);
     load();
@@ -61,7 +61,7 @@ export default function UsersList({ statusFilter }: { statusFilter?: string }) {
 
   const del = async (u: any) => {
     if (!confirm(`Delete ${u.email}? This is permanent.`)) return;
-    const { error } = await supabase.functions.invoke("admin-delete-user", { body: { user_id: u.id } });
+    const { error } = await supabase.functions.invoke("admin-delete-user", { body: { user_id: u.user_id } });
     if (error) return toast.error(error.message);
     toast.success("Deleted");
     load();
