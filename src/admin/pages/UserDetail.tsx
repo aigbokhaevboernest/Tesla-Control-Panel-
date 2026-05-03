@@ -50,7 +50,7 @@ if (!id) return;
 const [{ data: u, error }, { data: c }, { data: tr }] = await Promise.all([
 supabase.from("profiles").select("*").eq("user_id", id).single(),
 supabase.from("account_withdrawal_codes").select("*").eq("user_id", id).maybeSingle(),
-supabase.from("managers").select("id, full_name, specialty, performance_pct").order("created_at", { ascending: false }),
+supabase.from("expert_traders").select("id, full_name, specialty, performance_pct").order("created_at", { ascending: false }),
 ]);
 if (error) return toast.error(error.message);
 setUser(u);
@@ -87,7 +87,7 @@ toast.success("Deleted");
 navigate("/admin/users");
 };
 
-const saveBadge = () => updateProfile({ account_level }, "Badge updated");
+const saveBadge = () => updateProfile({ account_level: badge }, "Badge updated");
 
 const updatePwd = async () => {
 if (pwd !== pwd2) return toast.error("Passwords do not match");
@@ -143,8 +143,8 @@ return (
     <CardContent>
       <div className="grid grid-cols-3 gap-2 text-center">
         <BalanceCell label="Main" value={user.total_balance} accent="text-sky-500" />
-        <BalanceCell label="Profit" value={user.profit_balance} accent="text-emerald-500" />
-        <BalanceCell label="Deposit" value={user.deposit_balance} accent="text-amber-500" />
+        <BalanceCell label="Profit" value={user.profit} accent="text-emerald-500" />
+        <BalanceCell label="Deposit" value={user.deposit} accent="text-amber-500" />
       </div>
     </CardContent>
   </Card>
