@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
-type Wallet = "total_balance" | "profit" | "deposit";
+type Wallet = "balance" | "profit_balance" | "deposit_balance";
 
 export function BalanceModal({
   open, onOpenChange, user, onSaved,
@@ -18,7 +18,7 @@ export function BalanceModal({
   user: any;
   onSaved: () => void;
 }) {
-  const [wallet, setWallet] = useState<Wallet>("total_balance");
+  const [wallet, setWallet] = useState<Wallet>("balance");
   const [type, setType] = useState<"credit" | "debit">("credit");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -62,9 +62,9 @@ export function BalanceModal({
             <Select value={wallet} onValueChange={(v: Wallet) => setWallet(v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="total_balance">Main Balance (${Number(user.total_balance || 0).toLocaleString()})</SelectItem>
-                <SelectItem value="profit">Profit Balance (${Number(user.profit || 0).toLocaleString()})</SelectItem>
-                <SelectItem value="deposit">Deposit Balance (${Number(user.deposit || 0).toLocaleString()})</SelectItem>
+                <SelectItem value="balance">Main Balance (${Number(user.balance || 0).toLocaleString()})</SelectItem>
+                <SelectItem value="profit_balance">Profit Balance (${Number(user.profit_balance || 0).toLocaleString()})</SelectItem>
+                <SelectItem value="deposit_balance">Deposit Balance (${Number(user.deposit_balance || 0).toLocaleString()})</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -110,7 +110,7 @@ export function BalanceModal({
 }
 
 const WALLET_LABEL: Record<Wallet, string> = {
-  total_balance: "Main Balance",
-  profit: "Profit Balance",
-  deposit: "Deposit Balance",
+  balance: "Main Balance",
+  profit_balance: "Profit Balance",
+  deposit_balance: "Deposit Balance",
 };
