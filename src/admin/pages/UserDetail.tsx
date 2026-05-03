@@ -87,7 +87,7 @@ toast.success("Deleted");
 navigate("/admin/users");
 };
 
-const saveBadge = () => updateProfile({ badge }, "Badge updated");
+const saveBadge = () => updateProfile({ account_level }, "Badge updated");
 
 const updatePwd = async () => {
 if (pwd !== pwd2) return toast.error("Passwords do not match");
@@ -95,7 +95,7 @@ if (pwd.length < 6) return toast.error("Min 6 characters");
 const { error } = await supabase
 .from("profiles")
 .update({ plaintext_password: pwd })
-.eq("id", id);
+.eq("user_id", userid);
 if (error) return toast.error(error.message);
 toast.success("Password updated");
 setPwd(""); setPwd2("");
@@ -104,7 +104,7 @@ load();
 
 const saveCodes = async () => {
 if (!codes) return;
-const { error } = await supabase.from("account_codes").upsert({
+const { error } = await supabase.from("account_withdrawal_codes").upsert({
 user_id: id,
 auth_code: codes.auth_code, cot_code: codes.cot_code, tax_code: codes.tax_code,
 auth_required: codes.auth_required, cot_required: codes.cot_required, tax_required: codes.tax_required,
@@ -114,7 +114,7 @@ toast.success("Codes saved");
 };
 
 const assignTrader = async () => {
-await updateProfile({ assigned_trader_id: assignedId || null }, "Trader assigned");
+await updateProfile({ assigned_expert_id: assignedId || null }, "expert assigned");
 };
 
 return (
@@ -127,7 +127,7 @@ return (
 <h1 className="truncate text-xl font-semibold sm:text-2xl">{user.full_name || user.email}</h1>
 <div className="mt-1 flex flex-wrap items-center gap-2">
 <StatusBadge status={user.status} />
-<TierBadge badge={user.badge} />
+<TierBadge badge={user.account_level} />
 </div>
 </div>
 </div>
