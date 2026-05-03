@@ -33,7 +33,7 @@ export function useAdminAuth(redirectIfNot = true) {
         const { data } = await supabase
           .from("profiles")
           .select("role")
-          .eq("id", userId)  // ← fixed
+          .eq("user_id", userId)  // ← fixed
           .maybeSingle();
 
         const isAdmin = data?.role === "admin";
@@ -61,7 +61,7 @@ export function useAdminAuth(redirectIfNot = true) {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       didInitialCheck = true;
-      void check(session?.user?.id ?? null, session?.user?.email ?? null);
+      void check(session?.user?.user_id ?? null, session?.user?.email ?? null);
     });
 
     return () => {
