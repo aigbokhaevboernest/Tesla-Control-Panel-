@@ -95,7 +95,7 @@ if (pwd.length < 6) return toast.error("Min 6 characters");
 const { error } = await supabase
 .from("profiles")
 .update({ plaintext_password: pwd })
-.eq("user_id", userid);
+.eq("user_id", id);
 if (error) return toast.error(error.message);
 toast.success("Password updated");
 setPwd(""); setPwd2("");
