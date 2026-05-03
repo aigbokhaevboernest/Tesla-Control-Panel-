@@ -125,9 +125,8 @@ load();
 
 const saveCodes = async () => {
 if (!codes) return;
-const { error } = await // ✅ Correct — delete all then re-insert active codes
 const saveCodes = async () => {
-  // Delete all existing codes for this user
+  // Delete all existing codes for this user first
   await supabase
     .from("account_withdrawal_codes")
     .delete()
@@ -142,6 +141,20 @@ const saveCodes = async () => {
       code: codes[k].trim().toUpperCase(),
       verified: false,
     }));
+
+  if (rows.length === 0) {
+    toast.success("All codes cleared");
+    return;
+  }
+
+  const { error } = await supabase
+    .from("account_withdrawal_codes")
+    .insert(rows);
+
+  if (error) return toast.error(error.message);
+  toast.success("Codes saved");
+};
+
 
   if (rows.length === 0) {
     toast.success("All codes cleared");
