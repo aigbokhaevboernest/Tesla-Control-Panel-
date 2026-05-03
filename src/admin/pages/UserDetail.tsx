@@ -132,7 +132,6 @@ return (
 </div>
 </div>
 
-```
   {/* Balances */}
   <Card>
     <CardHeader className="pb-2 flex flex-row items-center justify-between">
@@ -298,7 +297,6 @@ return (
     onSaved={load}
   />
 </div>
-```
 
 );
 }
