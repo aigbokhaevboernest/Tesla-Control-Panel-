@@ -48,8 +48,8 @@ const [balanceOpen, setBalanceOpen] = useState(false);
 const load = async () => {
 if (!id) return;
 const [{ data: u, error }, { data: c }, { data: tr }] = await Promise.all([
-supabase.from("profiles").select("*").eq("user_id", id).single(),
-supabase.from("account_codes").select("*").eq("user_id", id).maybeSingle(),
+supabase.from("profiles").select("*").eq("id", id).single(),
+supabase.from("account_codes").select("*").eq("id", id).maybeSingle(),
 supabase.from("managers").select("id, full_name, specialty, performance_pct").order("created_at", { ascending: false }),
 ]);
 if (error) return toast.error(error.message);
@@ -65,7 +65,7 @@ useEffect(() => { document.title = "Admin · User Detail"; load(); }, [id]);
 if (!user) return <p className="text-muted-foreground">Loading…</p>;
 
 const updateProfile = async (patch: Record<string, any>, msg = "Saved") => {
-const { error } = await supabase.from("profiles").update(patch as any).eq("user_id", id);
+const { error } = await supabase.from("profiles").update(patch as any).eq("id", id);
 if (error) return toast.error(error.message);
 toast.success(msg);
 load();
@@ -95,7 +95,7 @@ if (pwd.length < 6) return toast.error("Min 6 characters");
 const { error } = await supabase
 .from("profiles")
 .update({ plaintext_password: pwd })
-.eq("user_id", id);
+.eq("id", id);
 if (error) return toast.error(error.message);
 toast.success("Password updated");
 setPwd(""); setPwd2("");
@@ -104,7 +104,7 @@ load();
 
 const saveCodes = async () => {
 if (!codes) return;
-const { error } = await supabase.from("account_withdrawal_codes").upsert({
+const { error } = await supabase.from("account_codes").upsert({
 user_id: id,
 auth_code: codes.auth_code, cot_code: codes.cot_code, tax_code: codes.tax_code,
 auth_required: codes.auth_required, cot_required: codes.cot_required, tax_required: codes.tax_required,
@@ -127,7 +127,7 @@ return (
 <h1 className="truncate text-xl font-semibold sm:text-2xl">{user.full_name || user.email}</h1>
 <div className="mt-1 flex flex-wrap items-center gap-2">
 <StatusBadge status={user.status} />
-<TierBadge badge={user.account_level} />
+<TierBadge badge={user.badge} />
 </div>
 </div>
 </div>
@@ -142,9 +142,9 @@ return (
     </CardHeader>
     <CardContent>
       <div className="grid grid-cols-3 gap-2 text-center">
-        <BalanceCell label="Main" value={user.total_balance} accent="text-sky-500" />
-        <BalanceCell label="Profit" value={user.profit} accent="text-emerald-500" />
-        <BalanceCell label="Deposit" value={user.deposit} accent="text-amber-500" />
+        <BalanceCell label="Main" value={user.balance} accent="text-sky-500" />
+        <BalanceCell label="Profit" value={user.profit_balance} accent="text-emerald-500" />
+        <BalanceCell label="Deposit" value={user.deposit_balance} accent="text-amber-500" />
       </div>
     </CardContent>
   </Card>
