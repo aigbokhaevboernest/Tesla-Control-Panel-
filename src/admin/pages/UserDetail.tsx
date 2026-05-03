@@ -48,14 +48,14 @@ const [balanceOpen, setBalanceOpen] = useState(false);
 const load = async () => {
 if (!id) return;
 const [{ data: u, error }, { data: c }, { data: tr }] = await Promise.all([
-supabase.from("profiles").select("*").eq("id", id).single(),
-supabase.from("account_codes").select("*").eq("id", id).maybeSingle(),
+supabase.from("profiles").select("*").eq("user_id", id).single(),
+supabase.from("account_withdrawal_codes").select("*").eq("user_id", id).maybeSingle(),
 supabase.from("managers").select("id, full_name, specialty, performance_pct").order("created_at", { ascending: false }),
 ]);
 if (error) return toast.error(error.message);
 setUser(u);
 setBadge(u.badge || "Basic Account");
-setAssignedId(u.assigned_trader_id || "");
+setAssignedId(u.assigned_expert_id || "");
 setCodes((c as Codes) ?? emptyCodes(id));
 setTraders(tr ?? []);
 };
@@ -65,7 +65,7 @@ useEffect(() => { document.title = "Admin · User Detail"; load(); }, [id]);
 if (!user) return <p className="text-muted-foreground">Loading…</p>;
 
 const updateProfile = async (patch: Record<string, any>, msg = "Saved") => {
-const { error } = await supabase.from("profiles").update(patch as any).eq("id", id);
+const { error } = await supabase.from("profiles").update(patch as any).eq("user_id", id);
 if (error) return toast.error(error.message);
 toast.success(msg);
 load();
@@ -142,7 +142,7 @@ return (
     </CardHeader>
     <CardContent>
       <div className="grid grid-cols-3 gap-2 text-center">
-        <BalanceCell label="Main" value={user.balance} accent="text-sky-500" />
+        <BalanceCell label="Main" value={user.total_balance} accent="text-sky-500" />
         <BalanceCell label="Profit" value={user.profit_balance} accent="text-emerald-500" />
         <BalanceCell label="Deposit" value={user.deposit_balance} accent="text-amber-500" />
       </div>
