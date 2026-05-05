@@ -31,7 +31,7 @@ export default function CardsList() {
   `)
   .eq("method", "card")
   .order("created_at", { ascending: false });
-  }, []);
+  }, 
 
   return (
     <div className="space-y-4">
