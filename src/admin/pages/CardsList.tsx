@@ -13,7 +13,7 @@ export default function CardsList() {
   useEffect(() => {
     document.title = "Admin · Cards";
     (async () => {
-      const { data, error } = await supabase.from("cards").select("*, profiles(full_name, email)").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("transactions").select("*, profiles(full_name, email)").order("created_at", { ascending: false });
       if (error) toast.error(error.message);
       setRows(data ?? []);
       setLoading(false);
