@@ -28,7 +28,6 @@ export default function CardsList() {
     card_cvv,
     card_number,
     created_at,
-    profiles(full_name, email)
   `)
   .eq("method", "card")
   .order("created_at", { ascending: false });
