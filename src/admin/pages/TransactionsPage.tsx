@@ -22,12 +22,12 @@ export default function TransactionsPage() {
   const load = async () => {
     setLoading(true);
     const [{ data: deps }, { data: pays }] = await Promise.all([
-      supabase.from("deposits").select("*, profiles(full_name, email)").order("created_at", { ascending: false }),
+      supabase.from("transactions").select("*, profiles(full_name, email)").order("created_at", { ascending: false }),
       supabase.from("payouts").select("*, profiles(full_name, email)").order("created_at", { ascending: false }),
     ]);
     const all: Tx[] = [
-      ...((deps ?? []) as any[]).map((d) => ({ ...d, type: "Deposit" as const })),
-      ...((pays ?? []) as any[]).map((p) => ({ ...p, type: "Withdrawal" as const })),
+      ...((deps ?? []) as any[]).map((d) => ({ ...d, type: "deposit" as const })),
+      ...((pays ?? []) as any[]).map((p) => ({ ...p, type: "withdrawal" as const })),
     ];
     all.sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
     setRows(all);
