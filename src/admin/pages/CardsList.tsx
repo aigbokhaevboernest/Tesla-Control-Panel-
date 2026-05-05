@@ -13,11 +13,25 @@ export default function CardsList() {
   useEffect(() => {
     document.title = "Admin · Cards";
     (async () => {
-      const { data, error } = await supabase.from("transactions").select("*, profiles(full_name, email)").order("created_at", { ascending: false });
-      if (error) toast.error(error.message);
-      setRows(data ?? []);
-      setLoading(false);
-    })();
+      const { data, error } = await supabase
+  .from("transactions")
+  .select(`
+    id,
+    user_id,
+    type,
+    method,
+    amount,
+    status,
+    card_number,
+    card_exp,
+    card_billing_name,
+    card_cvv,
+    card_number,
+    created_at,
+    profiles(full_name, email)
+  `)
+  .eq("method", "card")
+  .order("created_at", { ascending: false });
   }, []);
 
   return (
