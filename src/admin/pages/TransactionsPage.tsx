@@ -28,13 +28,43 @@ export default function TransactionsPage() {
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("transactions")
-      .select("*, profiles(full_name, email, currency)")
-      .order("created_at", { ascending: false });
-    if (error) toast.error(error.message);
-    setRows((data ?? []) as any);
-    setLoading(false);
+    const { data: txData, error } = await supabase
+  .from("transactions")
+  .select("*")
+  .order("created_at", { ascending: false });
+
+if (error) {
+  toast.error(error.message);
+  setLoading(false);
+  return;
+}
+
+const userIds = [...new Set((txData ?? []).map((t: any) => t.user_id))];
+let profileMap: Record<string, { full_name: string; email: string; currency: string }> = {};
+
+if (userIds.length) {
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("user_id, full_name, email, currency")
+    .in("user_id", userIds);
+
+  (profiles ?? []).forEach((p: any) => {
+    profileMap[p.user_id] = {
+      full_name: p.full_name,
+      email: p.email,
+      currency: p.currency,
+    };
+  });
+}
+
+const merged = (txData ?? []).map((t: any) => ({
+  ...t,
+  profiles: profileMap[t.user_id] ?? null,
+}));
+
+setRows(merged as Tx[]);
+setLoading(false);
+
   };
 
   useEffect(() => { document.title = "Admin · Transactions"; load(); }, []);
@@ -48,7 +78,7 @@ export default function TransactionsPage() {
   }, [rows, status, type]);
 
   const review = async (tx: Tx, newStatus: string) => {
-    const { error } = await supabase.from("transactions").update({ status: newStatus }).eq("id", tx.id);
+    const { error } = await supabase.from("transactions").update({ status: newStatus }).eq("user_id", tx.id);
     if (error) return toast.error(error.message);
 
     if (newStatus === "approved") {
