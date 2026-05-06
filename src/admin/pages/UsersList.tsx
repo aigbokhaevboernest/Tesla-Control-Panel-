@@ -10,6 +10,7 @@ import { MoreVertical, Eye, Trash2, Ban, CheckCircle2, AlertTriangle } from "luc
 import { StatusBadge } from "../components/StatusBadge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { formatMoney } from "@/lib/currency";
 
 export default function UsersList({ statusFilter }: { statusFilter?: string }) {
   const navigate = useNavigate();
