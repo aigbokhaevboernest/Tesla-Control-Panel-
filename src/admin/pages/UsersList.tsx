@@ -32,7 +32,7 @@ export default function UsersList({ statusFilter }: { statusFilter?: string }) {
       const { data: roles } = await supabase.from("user_roles").select("user_id, role").in("user_id", ids);
       adminIds = new Set((roles ?? []).filter((r: any) => r.role === "admin").map((r: any) => r.user_id));
     }
-    setRows((data ?? []).filter((p: any) => !adminIds.has(p.id)));
+    setRows((data ?? []).filter((p: any) => !adminIds.has(p.user_id)));
     setLoading(false);
   };
 
