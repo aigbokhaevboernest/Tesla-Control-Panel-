@@ -7,10 +7,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { StatusBadge } from "../components/StatusBadge";
 import { toast } from "sonner";
 import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { formatMoney } from "@/lib/currency";
 
 type Tx = {
-  id: string; user_id: string; amount: number; status: string; method?: string;
-  created_at: string; type: "Deposit" | "Withdrawal"; profiles?: { full_name?: string; email?: string };
+  id: string;
+  user_id: string;
+  amount: number;
+  status: string;
+  method?: string;
+  type: "deposit" | "withdrawal";
+  created_at: string;
+  profiles?: { full_name?: string; email?: string; currency?: string };
 };
 
 export default function TransactionsPage() {
@@ -21,16 +28,12 @@ export default function TransactionsPage() {
 
   const load = async () => {
     setLoading(true);
-    const [{ data: deps }, { data: pays }] = await Promise.all([
-      supabase.from("transactions").select("*, profiles(full_name, email)").order("created_at", { ascending: false }),
-      supabase.from("payouts").select("*, profiles(full_name, email)").order("created_at", { ascending: false }),
-    ]);
-    const all: Tx[] = [
-      ...((deps ?? []) as any[]).map((d) => ({ ...d, type: "deposit" as const })),
-      ...((pays ?? []) as any[]).map((p) => ({ ...p, type: "withdrawal" as const })),
-    ];
-    all.sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
-    setRows(all);
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("*, profiles(full_name, email, currency)")
+      .order("created_at", { ascending: false });
+    if (error) toast.error(error.message);
+    setRows((data ?? []) as any);
     setLoading(false);
   };
 
@@ -45,19 +48,37 @@ export default function TransactionsPage() {
   }, [rows, status, type]);
 
   const review = async (tx: Tx, newStatus: string) => {
-    const table = tx.type === "Deposit" ? "deposits" : "payouts";
-    const { error } = await supabase.from(table).update({ status: newStatus }).eq("id", tx.id);
+    const { error } = await supabase.from("transactions").update({ status: newStatus }).eq("id", tx.id);
     if (error) return toast.error(error.message);
-    if (tx.type === "Deposit" && newStatus === "approved") {
-      await supabase.functions.invoke("admin-balance", {
-        body: { user_id: tx.user_id, action: "increment", amount: Number(tx.amount) },
-      });
+
+    if (newStatus === "approved") {
+      // Fetch current balances and update directly
+      const { data: p } = await supabase
+        .from("profiles")
+        .select("total_balance, deposit")
+        .eq("id", tx.user_id)
+        .maybeSingle();
+      if (p) {
+        const amt = Number(tx.amount);
+        if (tx.type === "deposit") {
+          await supabase
+            .from("profiles")
+            .update({
+              total_balance: Number((p as any).total_balance || 0) + amt,
+              deposit: Number((p as any).deposit || 0) + amt,
+            } as any)
+            .eq("id", tx.user_id);
+        } else if (tx.type === "withdrawal") {
+          await supabase
+            .from("profiles")
+            .update({
+              total_balance: Number((p as any).total_balance || 0) - amt,
+            } as any)
+            .eq("id", tx.user_id);
+        }
+      }
     }
-    if (tx.type === "Withdrawal" && newStatus === "paid") {
-      await supabase.functions.invoke("admin-balance", {
-        body: { user_id: tx.user_id, action: "decrement", amount: Number(tx.amount) },
-      });
-    }
+
     toast.success(`Marked ${newStatus}`);
     load();
   };
@@ -75,8 +96,8 @@ export default function TransactionsPage() {
               <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="Deposit">Deposit</SelectItem>
-                <SelectItem value="Withdrawal">Withdrawal</SelectItem>
+                <SelectItem value="deposit">Deposit</SelectItem>
+                <SelectItem value="withdrawal">Withdrawal</SelectItem>
               </SelectContent>
             </Select>
             <Select value={status} onValueChange={setStatus}>
@@ -85,7 +106,6 @@ export default function TransactionsPage() {
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
                 <SelectItem value="failed">Failed</SelectItem>
                 <SelectItem value="canceled">Canceled</SelectItem>
@@ -109,24 +129,28 @@ export default function TransactionsPage() {
               ) : filtered.length === 0 ? (
                 <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No transactions</TableCell></TableRow>
               ) : filtered.map((tx) => (
-                <TableRow key={`${tx.type}-${tx.id}`}>
+                <TableRow key={tx.id}>
                   <TableCell>
                     <p className="text-sm font-medium">{tx.profiles?.full_name || "—"}</p>
                     <p className="text-xs text-muted-foreground">{tx.profiles?.email}</p>
                   </TableCell>
                   <TableCell>
-                    <span className="inline-flex items-center gap-1.5 text-sm">
-                      {tx.type === "Deposit" ? <ArrowDownToLine className="h-3.5 w-3.5 text-success" /> : <ArrowUpFromLine className="h-3.5 w-3.5 text-warning" />}
+                    <span className="inline-flex items-center gap-1.5 text-sm capitalize">
+                      {tx.type === "deposit"
+                        ? <ArrowDownToLine className="h-3.5 w-3.5 text-success" />
+                        : <ArrowUpFromLine className="h-3.5 w-3.5 text-warning" />}
                       {tx.type}
                     </span>
                   </TableCell>
-                  <TableCell className="font-semibold">${Number(tx.amount).toLocaleString()}</TableCell>
+                  <TableCell className="font-semibold">
+                    {formatMoney(tx.amount, tx.profiles?.currency)}
+                  </TableCell>
                   <TableCell className="text-sm">{new Date(tx.created_at).toLocaleString()}</TableCell>
                   <TableCell><StatusBadge status={tx.status} /></TableCell>
                   <TableCell className="text-right space-x-1">
                     {tx.status === "pending" && (
                       <>
-                        <Button size="sm" onClick={() => review(tx, tx.type === "Deposit" ? "approved" : "paid")}>Approve</Button>
+                        <Button size="sm" onClick={() => review(tx, "approved")}>Approve</Button>
                         <Button size="sm" variant="destructive" onClick={() => review(tx, "rejected")}>Reject</Button>
                       </>
                     )}
