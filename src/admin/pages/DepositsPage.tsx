@@ -39,10 +39,15 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
     const { error } = await supabase.from("deposits").update({ status: newStatus }).eq("id", d.id);
     if (error) return toast.error(error.message);
     if (newStatus === "approved") {
-      const { error: bErr } = await supabase.functions.invoke("admin-balance", {
-        body: { user_id: d.user_id, action: "increment", amount: Number(d.amount) },
-      });
-      if (bErr) return toast.error(bErr.message);
+      const { data: p } = await supabase
+        .from("profiles").select("total_balance, deposit").eq("id", d.user_id).maybeSingle();
+      if (p) {
+        const amt = Number(d.amount);
+        await supabase.from("profiles").update({
+          total_balance: Number((p as any).total_balance || 0) + amt,
+          deposit: Number((p as any).deposit || 0) + amt,
+        } as any).eq("id", d.user_id);
+      }
       await notifyEmail({
         send: sendEmail, userId: d.user_id, email: d.profiles?.email,
         intent: "deposit_approved",
