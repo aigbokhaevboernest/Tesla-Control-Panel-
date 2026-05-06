@@ -124,24 +124,36 @@ export default function UserDetail() {
   };
 
   const saveCodes = async () => {
+    if (!codes.auth.trim()) {
+      toast.error("Auth code is required");
+      return;
+    }
+
     const payload = {
       user_id: id!,
-      auth_code: codes.auth.trim().toUpperCase() || null,
-      cot_code: codes.cot.trim().toUpperCase() || null,
-      tax_code: codes.tax.trim().toUpperCase() || null,
-      auth_required: codeToggles.auth,
+      auth_code: codes.auth.trim().toUpperCase(),
+      cot_code: codeToggles.cot ? codes.cot.trim().toUpperCase() || null : null,
+      tax_code: codeToggles.tax ? codes.tax.trim().toUpperCase() || null : null,
+      auth_required: true,
       cot_required: codeToggles.cot,
       tax_required: codeToggles.tax,
-      updated_at: new Date().toISOString(),
     };
+
     const { data: existing } = await supabase
-      .from("account_withdrawal_codes").select("id").eq("user_id", id!).maybeSingle();
+      .from("account_withdrawal_codes")
+      .select("id")
+      .eq("user_id", id!)
+      .maybeSingle();
+
     const { error } = existing
-      ? await supabase.from("code").update(payload as any).eq("user_id", id!)
-      : await supabase.from("codes").insert(payload as any);
+      ? await supabase.from("account_withdrawal_codes").update(payload).eq("user_id", id!)
+      : await supabase.from("account_withdrawal_codes").insert(payload);
+
     if (error) return toast.error(error.message);
     toast.success("Codes saved");
+    load();
   };
+
 
   const assignTrader = async () => {
     await updateProfile({ assigned_expert_id: assignedId || null }, "Expert assigned");
