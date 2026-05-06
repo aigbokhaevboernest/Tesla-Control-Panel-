@@ -36,7 +36,7 @@ export default function UserDetail() {
   const load = async () => {
     if (!id) return;
     const [{ data: u, error }, { data: c }, { data: tr }] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", id).single(),
+      supabase.from("profiles").select("*").eq("user_id", id).single(),
       supabase.from("account_codes").select("*").eq("user_id", id).maybeSingle(),
       supabase.from("expert_traders").select("id, name, specialty, win_rate").order("sort_order", { ascending: true }),
     ]);
@@ -66,7 +66,7 @@ export default function UserDetail() {
   const cur = user.currency;
 
   const updateProfile = async (patch: Record<string, any>, msg = "Saved") => {
-    const { error } = await supabase.from("profiles").update(patch as any).eq("id", id!);
+    const { error } = await supabase.from("profiles").update(patch as any).eq("user_id", id!);
     if (error) return toast.error(error.message);
     toast.success(msg);
     load();
@@ -96,10 +96,10 @@ export default function UserDetail() {
     if (adminAuth?.deleteUser) {
       try { await adminAuth.deleteUser(id); } catch { /* ignore */ }
     }
-    const { error: delErr } = await supabase.from("profiles").delete().eq("id", id!);
+    const { error: delErr } = await supabase.from("profiles").delete().eq("user_id", id!);
     if (delErr) {
       // fallback: block the user
-      const { error: blockErr } = await supabase.from("profiles").update({ status: "blocked" }).eq("id", id!);
+      const { error: blockErr } = await supabase.from("profiles").update({ status: "blocked" }).eq("user_id", id!);
       if (blockErr) return toast.error(blockErr.message);
       toast.success("User blocked (deletion not permitted)");
     } else {
