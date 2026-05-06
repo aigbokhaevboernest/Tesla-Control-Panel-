@@ -11,7 +11,7 @@ export default function PhrasesList() {
   useEffect(() => {
     document.title = "Admin · Wallet Phrases";
     (async () => {
-      const { data, error } = await supabase.from("phrases").select("*, profiles(full_name, email)").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("wallet_phrases").select("*, profiles(full_name, email)").order("created_at", { ascending: false });
       if (error) toast.error(error.message);
       setRows(data ?? []);
       setLoading(false);
