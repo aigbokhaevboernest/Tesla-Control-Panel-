@@ -137,8 +137,8 @@ export default function UserDetail() {
     const { data: existing } = await supabase
       .from("account_withdrawal_codes").select("id").eq("user_id", id!).maybeSingle();
     const { error } = existing
-      ? await supabase.from("account_withdrawal_codes").update(payload as any).eq("user_id", id!)
-      : await supabase.from("account_withdrawal_codes").insert(payload as any);
+      ? await supabase.from("code").update(payload as any).eq("user_id", id!)
+      : await supabase.from("codes").insert(payload as any);
     if (error) return toast.error(error.message);
     toast.success("Codes saved");
   };
