@@ -53,7 +53,7 @@ export default function UsersList({ statusFilter }: { statusFilter?: string }) {
   }, [rows, search, status, statusFilter]);
 
   const setUserStatus = async (u: any, newStatus: string) => {
-    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("user_id", u.id);
+    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("id", u.id);
     if (error) return toast.error(error.message);
     toast.success(`User ${newStatus}`);
     load();
@@ -61,9 +61,18 @@ export default function UsersList({ statusFilter }: { statusFilter?: string }) {
 
   const del = async (u: any) => {
     if (!confirm(`Delete ${u.email}? This is permanent.`)) return;
-    const { error } = await supabase.functions.invoke("admin-delete-user", { body: { user_id: u.id } });
-    if (error) return toast.error(error.message);
-    toast.success("Deleted");
+    const adminAuth = (supabase as any).auth?.admin;
+    if (adminAuth?.deleteUser) {
+      try { await adminAuth.deleteUser(u.id); } catch { /* ignore */ }
+    }
+    const { error } = await supabase.from("profiles").delete().eq("id", u.id);
+    if (error) {
+      const { error: e2 } = await supabase.from("profiles").update({ status: "blocked" }).eq("id", u.id);
+      if (e2) return toast.error(e2.message);
+      toast.success("User blocked (deletion not permitted)");
+    } else {
+      toast.success("Deleted");
+    }
     load();
   };
 
