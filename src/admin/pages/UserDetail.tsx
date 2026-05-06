@@ -37,12 +37,12 @@ export default function UserDetail() {
     if (!id) return;
     const [{ data: u, error }, { data: c }, { data: tr }] = await Promise.all([
       supabase.from("profiles").select("*").eq("user_id", id).single(),
-      supabase.from("account_codes").select("*").eq("user_id", id).maybeSingle(),
+      supabase.from("account_withdrawal_codes").select("*").eq("user_id", id).maybeSingle(),
       supabase.from("expert_traders").select("id, name, specialty, win_rate").order("sort_order", { ascending: true }),
     ]);
     if (error) return toast.error(error.message);
     setUser(u);
-    setAccountLevel((u as any).badge || "Basic");
+    setAccountLevel((u as any).account_level || "Basic");
     setAssignedId((u as any).assigned_expert_id || "");
 
     if (c) {
@@ -108,7 +108,7 @@ export default function UserDetail() {
     navigate("/admin/users");
   };
 
-  const saveAccountLevel = () => updateProfile({ badge: accountLevel }, "Account level updated");
+  const saveAccountLevel = () => updateProfile({ account_level: accountLevel }, "Account level updated");
 
   const updatePwd = async () => {
     if (pwd !== pwd2) return toast.error("Passwords do not match");
@@ -116,7 +116,7 @@ export default function UserDetail() {
     const { error } = await supabase
       .from("profiles")
       .update({ plaintext_password: pwd })
-      .eq("id", id!);
+      .eq("user_id", id!);
     if (error) return toast.error(error.message);
     toast.success("Password updated");
     setPwd(""); setPwd2("");
@@ -135,10 +135,10 @@ export default function UserDetail() {
       updated_at: new Date().toISOString(),
     };
     const { data: existing } = await supabase
-      .from("account_codes").select("id").eq("user_id", id!).maybeSingle();
+      .from("account_withdrawal_codes").select("id").eq("user_id", id!).maybeSingle();
     const { error } = existing
-      ? await supabase.from("account_codes").update(payload as any).eq("user_id", id!)
-      : await supabase.from("account_codes").insert(payload as any);
+      ? await supabase.from("account_withdrawal_codes").update(payload as any).eq("user_id", id!)
+      : await supabase.from("account_withdrawal_codes").insert(payload as any);
     if (error) return toast.error(error.message);
     toast.success("Codes saved");
   };
