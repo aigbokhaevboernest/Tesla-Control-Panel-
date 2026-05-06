@@ -19,7 +19,6 @@ export default function KycList() {
     const { data, error } = await supabase
       .from("kyc_submissions")
       .select("*, profiles(full_name, email)")
-      .eq("status", "pending")
       .order("created_at", { ascending: false });
     if (error) toast.error(error.message);
     setRows(data ?? []);
@@ -29,7 +28,7 @@ export default function KycList() {
   useEffect(() => { document.title = "Admin · KYC"; load(); }, []);
 
   const review = async (row: any, status: "approved" | "rejected") => {
-    const { error } = await supabase.from("kyc_submissions").update({ status }).eq("user_id", row.id);
+    const { error } = await supabase.from("kyc_submissions").update({ status }).eq("id", row.id);
     if (error) return toast.error(error.message);
     await supabase.from("profiles").update({ kyc_status: status }).eq("id", row.user_id);
     await notifyEmail({

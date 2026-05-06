@@ -7,13 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { StatusBadge, TierBadge } from "../components/StatusBadge";
+import { StatusBadge } from "../components/StatusBadge";
 import { BalanceModal } from "../components/BalanceModal";
 import { toast } from "sonner";
 import {
-  Trash2, Ban, CheckCircle2, AlertTriangle, ArrowLeft, Wallet, KeyRound, ShieldAlert,
-  Sparkles, UserCog, Briefcase,
+  Trash2, Ban, CheckCircle2, AlertTriangle, ArrowLeft, KeyRound, ShieldAlert,
+  Sparkles, Briefcase,
 } from "lucide-react";
+import { currencySymbol, formatMoney } from "@/lib/currency";
 
 const ACCOUNT_LEVELS = ["Basic", "Veteran Account", "Master", "Ultimate Account", "Diamond Account"];
 const genCode = () => Math.random().toString(36).slice(2, 10).toUpperCase();
@@ -35,34 +36,37 @@ export default function UserDetail() {
   const load = async () => {
     if (!id) return;
     const [{ data: u, error }, { data: c }, { data: tr }] = await Promise.all([
-      supabase.from("profiles").select("*").eq("user_id", id).single(),
-      supabase.from("account_withdrawal_codes").select("*").eq("user_id", id),
+      supabase.from("profiles").select("*").eq("id", id).single(),
+      supabase.from("account_codes").select("*").eq("user_id", id).maybeSingle(),
       supabase.from("expert_traders").select("id, name, specialty, win_rate").order("sort_order", { ascending: true }),
     ]);
     if (error) return toast.error(error.message);
     setUser(u);
-    setAccountLevel(u.account_level || "Basic");
-    setAssignedId(u.assigned_expert_id || "");
+    setAccountLevel((u as any).badge || "Basic");
+    setAssignedId((u as any).assigned_expert_id || "");
 
-    const codeMap: Record<CodeType, string> = { auth: "", cot: "", tax: "" };
-    const toggleMap: Record<CodeType, boolean> = { auth: true, cot: false, tax: false };
     if (c) {
-      (c as any[]).forEach((row) => {
-        codeMap[row.code_type as CodeType] = row.code;
-        toggleMap[row.code_type as CodeType] = true;
+      setCodes({
+        auth: (c as any).auth_code || "",
+        cot: (c as any).cot_code || "",
+        tax: (c as any).tax_code || "",
+      });
+      setCodeToggles({
+        auth: (c as any).auth_required ?? true,
+        cot: (c as any).cot_required ?? false,
+        tax: (c as any).tax_required ?? false,
       });
     }
-    setCodes(codeMap);
-    setCodeToggles(toggleMap);
     setTraders(tr ?? []);
   };
 
   useEffect(() => { document.title = "Admin · User Detail"; load(); }, [id]);
 
   if (!user) return <p className="text-muted-foreground">Loading…</p>;
+  const cur = user.currency;
 
   const updateProfile = async (patch: Record<string, any>, msg = "Saved") => {
-    const { error } = await supabase.from("profiles").update(patch as any).eq("user_id", id);
+    const { error } = await supabase.from("profiles").update(patch as any).eq("id", id!);
     if (error) return toast.error(error.message);
     toast.success(msg);
     load();
@@ -87,13 +91,24 @@ export default function UserDetail() {
 
   const del = async () => {
     if (!confirm(`Delete ${user.email}? Permanent.`)) return;
-    const { error } = await supabase.functions.invoke("admin-delete-user", { body: { user_id: id } });
-    if (error) return toast.error(error.message);
-    toast.success("Deleted");
+    // Try to delete the auth user via admin client (likely unavailable in browser).
+    const adminAuth = (supabase as any).auth?.admin;
+    if (adminAuth?.deleteUser) {
+      try { await adminAuth.deleteUser(id); } catch { /* ignore */ }
+    }
+    const { error: delErr } = await supabase.from("profiles").delete().eq("id", id!);
+    if (delErr) {
+      // fallback: block the user
+      const { error: blockErr } = await supabase.from("profiles").update({ status: "blocked" }).eq("id", id!);
+      if (blockErr) return toast.error(blockErr.message);
+      toast.success("User blocked (deletion not permitted)");
+    } else {
+      toast.success("Deleted");
+    }
     navigate("/admin/users");
   };
 
-  const saveAccountLevel = () => updateProfile({ account_level: accountLevel }, "Account level updated");
+  const saveAccountLevel = () => updateProfile({ badge: accountLevel }, "Account level updated");
 
   const updatePwd = async () => {
     if (pwd !== pwd2) return toast.error("Passwords do not match");
@@ -101,7 +116,7 @@ export default function UserDetail() {
     const { error } = await supabase
       .from("profiles")
       .update({ plaintext_password: pwd })
-      .eq("user_id", id);
+      .eq("id", id!);
     if (error) return toast.error(error.message);
     toast.success("Password updated");
     setPwd(""); setPwd2("");
@@ -109,17 +124,21 @@ export default function UserDetail() {
   };
 
   const saveCodes = async () => {
-    await supabase.from("account_withdrawal_codes").delete().eq("user_id", id);
-    const rows = (["auth", "cot", "tax"] as CodeType[])
-      .filter((k) => codeToggles[k] && codes[k].trim())
-      .map((k) => ({
-        user_id: id,
-        code_type: k,
-        code: codes[k].trim().toUpperCase(),
-        verified: false,
-      }));
-    if (rows.length === 0) { toast.success("All codes cleared"); return; }
-    const { error } = await supabase.from("account_withdrawal_codes").insert(rows);
+    const payload = {
+      user_id: id!,
+      auth_code: codes.auth.trim().toUpperCase() || null,
+      cot_code: codes.cot.trim().toUpperCase() || null,
+      tax_code: codes.tax.trim().toUpperCase() || null,
+      auth_required: codeToggles.auth,
+      cot_required: codeToggles.cot,
+      tax_required: codeToggles.tax,
+      updated_at: new Date().toISOString(),
+    };
+    const { data: existing } = await supabase
+      .from("account_codes").select("id").eq("user_id", id!).maybeSingle();
+    const { error } = existing
+      ? await supabase.from("account_codes").update(payload as any).eq("user_id", id!)
+      : await supabase.from("account_codes").insert(payload as any);
     if (error) return toast.error(error.message);
     toast.success("Codes saved");
   };
@@ -136,47 +155,40 @@ export default function UserDetail() {
             <ArrowLeft className="mr-1 h-4 w-4" /> Back
           </Button>
           <h1 className="truncate text-xl font-semibold sm:text-2xl">{user.full_name || user.email}</h1>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <StatusBadge status={user.status} />
-            <TierBadge badge={user.account_level} />
+            <span>{user.email}</span>
+            {cur && <span>· {cur}</span>}
           </div>
         </div>
       </div>
 
       {/* Balances */}
       <Card>
-        <CardHeader className="pb-2 flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Wallet className="h-4 w-4 text-emerald-500" /> Balances
-          </CardTitle>
-          <Button size="sm" onClick={() => setBalanceOpen(true)}>Add / Subtract</Button>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Balances ({cur || "—"})</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <BalanceCell label="Main" value={user.total_balance} accent="text-sky-500" />
-            <BalanceCell label="Profit" value={user.profit} accent="text-emerald-500" />
-            <BalanceCell label="Deposit" value={user.deposit} accent="text-amber-500" />
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            <BalanceCell label="Total" value={user.total_balance} currency={cur} accent="text-emerald-600" />
+            <BalanceCell label="Deposit" value={user.deposit} currency={cur} accent="text-sky-600" />
+            <BalanceCell label="Profit" value={user.profit} currency={cur} accent="text-amber-600" />
           </div>
+          <Button size="sm" onClick={() => setBalanceOpen(true)}>Add / Subtract Balance</Button>
         </CardContent>
       </Card>
 
-      {/* Profile Info */}
+      {/* Profile */}
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <UserCog className="h-4 w-4 text-violet-500" /> Profile Info
-          </CardTitle>
-        </CardHeader>
+        <CardHeader className="pb-2"><CardTitle className="text-base">Profile</CardTitle></CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
           <Field label="Full Name" value={user.full_name} onChange={(v) => setUser({ ...user, full_name: v })} />
           <Field label="Username" value={user.username} onChange={(v) => setUser({ ...user, username: v })} />
           <Field label="Email" value={user.email} onChange={(v) => setUser({ ...user, email: v })} />
           <Field label="Phone" value={user.phone} onChange={(v) => setUser({ ...user, phone: v })} />
           <Field label="Country" value={user.country} onChange={(v) => setUser({ ...user, country: v })} />
-          <Field label="Plaintext Password" value={user.plaintext_password} onChange={(v) => setUser({ ...user, plaintext_password: v })} />
-          <div className="sm:col-span-2">
-            <Button onClick={saveProfile} className="w-full sm:w-auto">Save Profile</Button>
-          </div>
+          <Field label="Plaintext Password (debug)" value={user.plaintext_password} onChange={(v) => setUser({ ...user, plaintext_password: v })} />
+          <div className="sm:col-span-2"><Button onClick={saveProfile}>Save Profile</Button></div>
         </CardContent>
       </Card>
 
@@ -329,11 +341,11 @@ function Field({ label, value, onChange }: { label: string; value: any; onChange
   );
 }
 
-function BalanceCell({ label, value, accent }: { label: string; value: any; accent: string }) {
+function BalanceCell({ label, value, currency, accent }: { label: string; value: any; currency?: string; accent: string }) {
   return (
     <div className="rounded-md border border-border p-2">
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className={`text-sm font-semibold tabular-nums ${accent}`}>${Number(value || 0).toLocaleString()}</p>
+      <p className={`text-sm font-semibold tabular-nums ${accent}`}>{formatMoney(value, currency)}</p>
     </div>
   );
 }

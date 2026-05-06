@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
+import { currencySymbol, formatMoney } from "@/lib/currency";
 
 type Wallet = "total_balance" | "profit" | "deposit";
 
@@ -25,6 +26,8 @@ export function BalanceModal({
   const [busy, setBusy] = useState(false);
 
   if (!user) return null;
+  const cur = user.currency;
+  const sym = currencySymbol(cur);
 
   const submit = async () => {
     const amt = Number(amount);
@@ -40,7 +43,7 @@ export function BalanceModal({
     const { error } = await supabase
       .from("profiles")
       .update(patch as any)
-      .eq("user_id", user.user_id);
+      .eq("id", user.id);
     setBusy(false);
     if (error) return toast.error(error.message);
 
@@ -54,7 +57,7 @@ export function BalanceModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add / Subtract Balance</DialogTitle>
+          <DialogTitle>Add / Subtract Balance ({cur || "—"})</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div>
@@ -62,9 +65,9 @@ export function BalanceModal({
             <Select value={wallet} onValueChange={(v: Wallet) => setWallet(v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="total_balance">Main Balance (${Number(user.total_balance || 0).toLocaleString()})</SelectItem>
-                <SelectItem value="profit">Profit Balance (${Number(user.profit || 0).toLocaleString()})</SelectItem>
-                <SelectItem value="deposit">Deposit Balance (${Number(user.deposit || 0).toLocaleString()})</SelectItem>
+                <SelectItem value="total_balance">Main Balance ({formatMoney(user.total_balance, cur)})</SelectItem>
+                <SelectItem value="profit">Profit Balance ({formatMoney(user.profit, cur)})</SelectItem>
+                <SelectItem value="deposit">Deposit Balance ({formatMoney(user.deposit, cur)})</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -80,7 +83,7 @@ export function BalanceModal({
               </Select>
             </div>
             <div>
-              <Label>Amount</Label>
+              <Label>Amount ({sym || cur || "—"})</Label>
               <Input
                 type="number"
                 inputMode="decimal"
@@ -108,9 +111,3 @@ export function BalanceModal({
     </Dialog>
   );
 }
-
-const WALLET_LABEL: Record<Wallet, string> = {
-  balance: "Main Balance",
-  profit_balance: "Profit Balance",
-  deposit_balance: "Deposit Balance",
-};

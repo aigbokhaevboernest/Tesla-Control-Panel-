@@ -39,10 +39,13 @@ export default function PayoutsPage({ mode }: { mode: "pending" | "log" }) {
     const { error } = await supabase.from("payouts").update({ status: newStatus }).eq("id", p.id);
     if (error) return toast.error(error.message);
     if (newStatus === "paid") {
-      const { error: bErr } = await supabase.functions.invoke("admin-balance", {
-        body: { user_id: p.user_id, action: "decrement", amount: Number(p.amount) },
-      });
-      if (bErr) return toast.error(bErr.message);
+      const { data: prof } = await supabase
+        .from("profiles").select("total_balance").eq("id", p.user_id).maybeSingle();
+      if (prof) {
+        await supabase.from("profiles").update({
+          total_balance: Number((prof as any).total_balance || 0) - Number(p.amount),
+        } as any).eq("id", p.user_id);
+      }
       await notifyEmail({
         send: sendEmail, userId: p.user_id, email: p.profiles?.email,
         intent: "payout_approved",

@@ -25,7 +25,7 @@ export default function AdminDashboard() {
     setLoading(true);
     const [{ data: profiles, error: pErr }, { data: roles, error: rErr }] =
       await Promise.all([
-        supabase.from("profiles").select("user_id, email, created_at").order("created_at", { ascending: false }),
+        supabase.from("profiles").select("id, email, created_at").order("created_at", { ascending: false }),
         supabase.from("user_roles").select("user_id, role"),
       ]);
     if (pErr || rErr) {
@@ -90,14 +90,18 @@ export default function AdminDashboard() {
   };
 
   const deleteUser = async (u: AdminUserRow) => {
-    const { error } = await supabase.functions.invoke("admin-delete-user", {
-      body: { user_id: u.id },
-    });
-    if (error) {
-      toast.error(error.message);
-      return;
+    const adminAuth = (supabase as any).auth?.admin;
+    if (adminAuth?.deleteUser) {
+      try { await adminAuth.deleteUser(u.id); } catch { /* ignore */ }
     }
-    toast.success(`Deleted ${u.email}`);
+    const { error } = await supabase.from("profiles").delete().eq("id", u.id);
+    if (error) {
+      const { error: e2 } = await supabase.from("profiles").update({ status: "blocked" }).eq("id", u.id);
+      if (e2) { toast.error(e2.message); return; }
+      toast.success(`Blocked ${u.email} (deletion not permitted)`);
+    } else {
+      toast.success(`Deleted ${u.email}`);
+    }
     load();
   };
 

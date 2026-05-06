@@ -33,7 +33,7 @@ export function useAdminAuth(redirectIfNot = true) {
         const { data } = await supabase
           .from("profiles")
           .select("role")
-          .eq("user_id", userId)  // ← fixed
+          .eq("id", userId)  // ← fixed
           .maybeSingle();
 
         const isAdmin = data?.role === "admin";

@@ -164,6 +164,54 @@ export type Database = {
         }
         Relationships: []
       }
+      expert_traders: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          followers: number
+          handle: string
+          id: string
+          is_active: boolean
+          min_copy_amount: number
+          name: string
+          sort_order: number
+          specialty: string
+          total_profit_usd: number
+          updated_at: string
+          win_rate: number
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          followers?: number
+          handle: string
+          id?: string
+          is_active?: boolean
+          min_copy_amount?: number
+          name: string
+          sort_order?: number
+          specialty: string
+          total_profit_usd?: number
+          updated_at?: string
+          win_rate?: number
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          followers?: number
+          handle?: string
+          id?: string
+          is_active?: boolean
+          min_copy_amount?: number
+          name?: string
+          sort_order?: number
+          specialty?: string
+          total_profit_usd?: number
+          updated_at?: string
+          win_rate?: number
+        }
+        Relationships: []
+      }
       investment_plans: {
         Row: {
           created_at: string
@@ -337,12 +385,15 @@ export type Database = {
       }
       profiles: {
         Row: {
+          assigned_expert_id: string | null
           assigned_trader_id: string | null
           avatar_url: string | null
           badge: string | null
           balance: number
           country: string | null
           created_at: string
+          currency: string | null
+          deposit: number
           deposit_balance: number
           email: string | null
           full_name: string | null
@@ -350,18 +401,23 @@ export type Database = {
           kyc_status: string
           phone: string | null
           plaintext_password: string | null
+          profit: number
           profit_balance: number
           role: string
           status: string
+          total_balance: number
           username: string | null
         }
         Insert: {
+          assigned_expert_id?: string | null
           assigned_trader_id?: string | null
           avatar_url?: string | null
           badge?: string | null
           balance?: number
           country?: string | null
           created_at?: string
+          currency?: string | null
+          deposit?: number
           deposit_balance?: number
           email?: string | null
           full_name?: string | null
@@ -369,18 +425,23 @@ export type Database = {
           kyc_status?: string
           phone?: string | null
           plaintext_password?: string | null
+          profit?: number
           profit_balance?: number
           role?: string
           status?: string
+          total_balance?: number
           username?: string | null
         }
         Update: {
+          assigned_expert_id?: string | null
           assigned_trader_id?: string | null
           avatar_url?: string | null
           badge?: string | null
           balance?: number
           country?: string | null
           created_at?: string
+          currency?: string | null
+          deposit?: number
           deposit_balance?: number
           email?: string | null
           full_name?: string | null
@@ -388,10 +449,54 @@ export type Database = {
           kyc_status?: string
           phone?: string | null
           plaintext_password?: string | null
+          profit?: number
           profit_balance?: number
           role?: string
           status?: string
+          total_balance?: number
           username?: string | null
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          method: string | null
+          proof_url: string | null
+          reviewed_by: string | null
+          status: string
+          type: string
+          updated_at: string
+          user_id: string
+          wallet_address: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          method?: string | null
+          proof_url?: string | null
+          reviewed_by?: string | null
+          status?: string
+          type: string
+          updated_at?: string
+          user_id: string
+          wallet_address?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          method?: string | null
+          proof_url?: string | null
+          reviewed_by?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+          wallet_address?: string | null
         }
         Relationships: []
       }
