@@ -19,7 +19,6 @@ export default function KycList() {
     const { data, error } = await supabase
       .from("kyc_submissions")
       .select("*, profiles(full_name, email)")
-      .eq("status", "pending")
       .order("created_at", { ascending: false });
     if (error) toast.error(error.message);
     setRows(data ?? []);
