@@ -25,7 +25,7 @@ export default function AdminDashboard() {
     setLoading(true);
     const [{ data: profiles, error: pErr }, { data: roles, error: rErr }] =
       await Promise.all([
-        supabase.from("profiles").select("id, email, created_at").order("created_at", { ascending: false }),
+        supabase.from("profiles").select("user_id, email, created_at").order("created_at", { ascending: false }),
         supabase.from("user_roles").select("user_id, role"),
       ]);
     if (pErr || rErr) {
@@ -69,7 +69,7 @@ export default function AdminDashboard() {
       const { error } = await supabase
         .from("user_roles")
         .delete()
-        .eq("user_id", u.id)
+        .eq("user_id", u.user_id)
         .eq("role", "admin");
       if (error) {
         toast.error(error.message);
@@ -94,9 +94,9 @@ export default function AdminDashboard() {
     if (adminAuth?.deleteUser) {
       try { await adminAuth.deleteUser(u.id); } catch { /* ignore */ }
     }
-    const { error } = await supabase.from("profiles").delete().eq("id", u.id);
+    const { error } = await supabase.from("profiles").delete().eq("user_id", u.user_id);
     if (error) {
-      const { error: e2 } = await supabase.from("profiles").update({ status: "blocked" }).eq("id", u.id);
+      const { error: e2 } = await supabase.from("profiles").update({ status: "blocked" }).eq("user_id", u.user_id);
       if (e2) { toast.error(e2.message); return; }
       toast.success(`Blocked ${u.email} (deletion not permitted)`);
     } else {
