@@ -43,7 +43,7 @@ export function BalanceModal({
     const { error } = await supabase
       .from("profiles")
       .update(patch as any)
-      .eq("id", user.id);
+      .eq("user_id", user.id);
     setBusy(false);
     if (error) return toast.error(error.message);
 
