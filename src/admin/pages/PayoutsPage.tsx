@@ -16,7 +16,7 @@ export default function WithdrawalsPage({ mode }: { mode: "pending" | "log" }) {
     setLoading(true);
     let q = supabase
       .from("transactions")
-      .select("user_id, amount, method, status, created_at, id, wallet_address, bank_details, cashapp_tag, paypal_email")
+      .select("user_id, amount, method, status, created_at, id, wallet_address, bank_details, cashapp_tag, paypal_email, bank_name, account_number, routing_number, swift_code, iban")
       .eq("type", "withdrawal")
       .order("created_at", { ascending: false });
 
@@ -78,75 +78,133 @@ export default function WithdrawalsPage({ mode }: { mode: "pending" | "log" }) {
     load();
   };
 
-  return (
-    <div className="space-y-4 p-3">
+  const getDetails = (d: any) =>
+    [
+      d.bank_name,
+      d.account_number,
+      d.routing_number,
+      d.iban,
+      d.swift_code,
+      d.wallet_address,
+      d.cashapp_tag,
+      d.paypal_email,
+      d.bank_details,
+    ].filter(Boolean).join(" · ") || "—";
 
+  return (
+    <div className="w-full max-w-lg mx-auto px-3 py-4 space-y-4">
+
+      {/* Header */}
       <div>
-        <h1 className="text-xl font-semibold">
+        <h1 className="text-xl font-bold">
           {mode === "pending" ? "Pending Withdrawals" : "Withdrawal Log"}
         </h1>
         <p className="text-sm text-muted-foreground">{rows.length} entries</p>
       </div>
 
+      {/* Email toggle */}
       {mode === "pending" && (
         <label className="flex items-center gap-2 text-sm">
-          <Checkbox checked={sendEmail} onCheckedChange={(v) => setSendEmail(v === true)} />
-          Send email notification on approve / reject
+          <Checkbox
+            checked={sendEmail}
+            onCheckedChange={(v) => setSendEmail(v === true)}
+          />
+          Send email on approve / reject
         </label>
       )}
 
-      {loading ? (
+      {/* States */}
+      {loading && (
         <p className="text-center text-muted-foreground py-10">Loading…</p>
-      ) : rows.length === 0 ? (
-        <p className="text-center text-muted-foreground py-10">No withdrawal requests</p>
-      ) : (
+      )}
+
+      {!loading && rows.length === 0 && (
+        <p className="text-center text-muted-foreground py-10">
+          No withdrawal requests
+        </p>
+      )}
+
+      {/* Cards */}
+      {!loading && rows.length > 0 && (
         <div className="flex flex-col gap-3">
           {rows.map((d) => (
-            <Card key={d.id}>
+            <Card key={d.id} className="w-full shadow-sm">
               <CardContent className="p-4 space-y-3">
 
+                {/* Amount + Status */}
                 <div className="flex items-center justify-between">
-                  <span className="text-lg font-bold">
+                  <span className="text-xl font-bold">
                     ${Number(d.amount).toLocaleString()}
                   </span>
                   <StatusBadge status={d.status} />
                 </div>
 
+                {/* Info rows */}
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Method</span>
+                    <span className="capitalize font-medium">
+                      {d.method || "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Date</span>
+                    <span className="font-medium">
+                      {new Date(d.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Time</span>
+                    <span className="font-medium">
+                      {new Date(d.created_at).toLocaleTimeString()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Details */}
+                <div className="rounded-md bg-muted px-3 py-2 text-xs break-all">
+                  <span className="text-muted-foreground">Details: </span>
+                  {getDetails(d)}
+                </div>
+
+                {/* User ID */}
                 <div className="text-xs text-muted-foreground break-all">
-                  <span className="font-medium text-foreground">User: </span>
+                  <span className="font-medium text-foreground">User ID: </span>
                   {d.user_id}
                 </div>
 
-                <div className="flex gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Method: </span>
-                    <span className="capitalize">{d.method || "—"}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Date: </span>
-                    {new Date(d.created_at).toLocaleDateString()}
-                  </div>
-                </div>
-
-                {(d.wallet_address || d.bank_details || d.cashapp_tag || d.paypal_email) && (
-                  <div className="text-xs text-muted-foreground break-all">
-                    <span className="font-medium text-foreground">Details: </span>
-                    {d.wallet_address || d.bank_details || d.cashapp_tag || d.paypal_email}
-                  </div>
-                )}
-
+                {/* Action buttons */}
                 {mode === "pending" && (
                   <div className="grid grid-cols-2 gap-2 pt-1">
-                    <Button size="sm" onClick={() => review(d, "approved")}>
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      onClick={() => review(d, "approved")}
+                    >
                       Approve
                     </Button>
-                    <Button size="sm" variant="destructive" onClick={() => review(d, "rejected")}>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="w-full"
+                      onClick={() => review(d, "rejected")}
+                    >
                       Reject
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => review(d, "failed")}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => review(d, "failed")}
+                    >
                       Failed
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => review(d, "canceled")}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => review(d, "canceled")}
+                    >
                       Cancel
                     </Button>
                   </div>
