@@ -35,7 +35,7 @@ export default function WithdrawalsPage({ mode }: { mode: "pending" | "log" }) {
       const { data: ps } = await supabase
         .from("profiles")
         .select("id, full_name, email, total_balance, currency")
-        .in("id", ids);
+        .in("user_id", ids as any);
       (ps ?? []).forEach((p: any) => { profiles[p.id] = p; });
     }
     setRows(txs.map((t) => ({ ...t, profile: profiles[t.user_id] || null })));
@@ -60,7 +60,7 @@ export default function WithdrawalsPage({ mode }: { mode: "pending" | "log" }) {
       await supabase
         .from("profiles")
         .update({ total_balance: Math.max(0, current - amt) } as any)
-        .eq("id", d.user_id);
+        .eq("user_id", d.user_id);
 
       await notifyEmail({
         send: sendEmail,
