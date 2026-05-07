@@ -20,7 +20,7 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
 
   const load = async () => {
     setLoading(true);
-    let q = supabase.from("deposits").select("*, profiles(full_name, email)").order("created_at", { ascending: false });
+    let q = supabase.from("deposits").select("*, profiles(first_name,last_name, email)").order("created_at", { ascending: false });
     if (mode === "pending") q = q.eq("status", "pending");
     else {
       if (status !== "all") q = q.eq("status", status);
@@ -40,13 +40,13 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
     if (error) return toast.error(error.message);
     if (newStatus === "approved") {
       const { data: p } = await supabase
-        .from("profiles").select("total_balance, deposit").eq("id", d.user_id).maybeSingle();
+        .from("profiles").select("total_balance, deposit").eq("user_id", d.user_id).maybeSingle();
       if (p) {
         const amt = Number(d.amount);
         await supabase.from("profiles").update({
           total_balance: Number((p as any).total_balance || 0) + amt,
           deposit: Number((p as any).deposit || 0) + amt,
-        } as any).eq("id", d.user_id);
+        } as any).eq("user_id", d.user_id);
       }
       await notifyEmail({
         send: sendEmail, userId: d.user_id, email: d.profiles?.email,
