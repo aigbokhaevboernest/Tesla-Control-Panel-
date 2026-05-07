@@ -26,7 +26,7 @@ export default function BankInfoPage() {
   const load = async () => {
     setLoading(true);
     const { data, error } = await supabase
-      .from("withdrawal_bank_info")
+      .from("bank_deposit_info")
       .select("*")
       .order("created_at", { ascending: false });
     if (error) toast.error(error.message);
@@ -49,11 +49,11 @@ export default function BankInfoPage() {
       is_active: editing.is_active ?? true,
     };
     if (editing.id) {
-      const { error } = await supabase.from("withdrawal_bank_info").update(payload).eq("id", editing.id);
+      const { error } = await supabase.from("bank_deposit_info").update(payload).eq("id", editing.id);
       if (error) return toast.error(error.message);
       toast.success("Bank updated");
     } else {
-      const { error } = await supabase.from("withdrawal_bank_info").insert(payload);
+      const { error } = await supabase.from("bank_deposit_info").insert(payload);
       if (error) return toast.error(error.message);
       toast.success("Bank added");
     }
@@ -71,7 +71,7 @@ export default function BankInfoPage() {
 
   const toggleActive = async (b: Bank) => {
     const { error } = await supabase
-      .from("withdrawal_bank_info")
+      .from("bank_deposit_info")
       .update({ is_active: !b.is_active })
       .eq("id", b.id);
     if (error) return toast.error(error.message);
