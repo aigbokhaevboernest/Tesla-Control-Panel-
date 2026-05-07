@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase as supabaseTyped } from "@/lib/supabaseClient";
+const supabase: any = supabaseTyped;
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserCheck, UserX, ArrowDownToLine, ArrowUpFromLine, DollarSign } from "lucide-react";
 import { StatusBadge } from "../components/StatusBadge";

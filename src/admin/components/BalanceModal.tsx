@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase as supabaseTyped } from "@/lib/supabaseClient";
+const supabase: any = supabaseTyped;
 import { toast } from "sonner";
 import { currencySymbol, formatMoney } from "@/lib/currency";
 
