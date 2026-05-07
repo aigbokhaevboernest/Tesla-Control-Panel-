@@ -20,7 +20,7 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
 
   const load = async () => {
     setLoading(true);
-    let q = supabase.from("deposits").select("*, profiles(first_name,last_name, email)").order("created_at", { ascending: false });
+    let q = supabase.from("deposits").select("*, profiles(full_name, email)").order("created_at", { ascending: false });
     if (mode === "pending") q = q.eq("status", "pending");
     else {
       if (status !== "all") q = q.eq("status", status);
