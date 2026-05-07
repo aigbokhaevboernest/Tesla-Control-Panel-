@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase as supabaseTyped } from "@/lib/supabaseClient";
+const supabase: any = supabaseTyped;
 
 export type AdminAuthState = {
   loading: boolean;
