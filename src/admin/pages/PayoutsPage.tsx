@@ -34,9 +34,9 @@ export default function WithdrawalsPage({ mode }: { mode: "pending" | "log" }) {
     if (ids.length) {
       const { data: ps } = await supabase
         .from("profiles")
-        .select("id, full_name, email, total_balance, currency")
+        .select("user_id, full_name, email, total_balance, currency")
         .in("user_id", ids as any);
-      (ps ?? []).forEach((p: any) => { profiles[p.id] = p; });
+      (ps ?? []).forEach((p: any) => { profiles[p.user_id] = p; });
     }
     setRows(txs.map((t) => ({ ...t, profile: profiles[t.user_id] || null })));
     setLoading(false);
