@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -20,48 +20,73 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
 
   const load = async () => {
     setLoading(true);
-    let q = supabase.from("deposit").select("*, profiles(full_name, email)").order("created_at", { ascending: false });
-    if (mode === "pending") q = q.eq("status", "pending");
-    else {
+    let q = supabase
+      .from("transactions")
+      .select("*, profiles(full_name, email)")
+      .eq("type", "deposit")
+      .order("created_at", { ascending: false });
+
+    if (mode === "pending") {
+      q = q.eq("status", "pending");
+    } else {
       if (status !== "all") q = q.eq("status", status);
       if (from) q = q.gte("created_at", from);
       if (to) q = q.lte("created_at", to + "T23:59:59");
     }
+
     const { data, error } = await q;
     if (error) toast.error(error.message);
     setRows(data ?? []);
     setLoading(false);
   };
 
-  useEffect(() => { document.title = mode === "pending" ? "Admin · Deposit Requests" : "Admin · Payment Log"; load(); }, [mode, status, from, to]);
+  useEffect(() => {
+    document.title = mode === "pending" ? "Admin · Deposit Requests" : "Admin · Payment Log";
+    load();
+  }, [mode, status, from, to]);
 
   const review = async (d: any, newStatus: string) => {
-    const { error } = await supabase.from("deposit").update({ status: newStatus }).eq("id", d.id);
+    const { error } = await supabase
+      .from("transactions")
+      .update({ status: newStatus })
+      .eq("id", d.id);
     if (error) return toast.error(error.message);
+
     if (newStatus === "approved") {
       const { data: p } = await supabase
-        .from("profiles").select("total_balance, deposit").eq("user_id", d.user_id).maybeSingle();
+        .from("profiles")
+        .select("total_balance, deposit")
+        .eq("user_id", d.user_id)
+        .maybeSingle();
       if (p) {
         const amt = Number(d.amount);
-        await supabase.from("profiles").update({
-          total_balance: Number((p as any).total_balance || 0) + amt,
-          deposit: Number((p as any).deposit || 0) + amt,
-        } as any).eq("user_id", d.user_id);
+        await supabase
+          .from("profiles")
+          .update({
+            total_balance: Number((p as any).total_balance || 0) + amt,
+            deposit: Number((p as any).deposit || 0) + amt,
+          } as any)
+          .eq("user_id", d.user_id);
       }
       await notifyEmail({
-        send: sendEmail, userId: d.user_id, email: d.profiles?.email,
+        send: sendEmail,
+        userId: d.user_id,
+        email: d.profiles?.email,
         intent: "deposit_approved",
         subject: "Your deposit has been approved",
         body: `Your deposit of $${Number(d.amount).toLocaleString()} has been approved and credited.`,
       });
     } else if (newStatus === "rejected") {
       await notifyEmail({
-        send: sendEmail, userId: d.user_id, email: d.profiles?.email,
+        send: sendEmail,
+        userId: d.user_id,
+        email: d.profiles?.email,
         intent: "deposit_rejected",
         subject: "Your deposit was rejected",
         body: `Your deposit of $${Number(d.amount).toLocaleString()} was rejected.`,
       });
     }
+
     toast.success(`Marked ${newStatus}`);
     load();
   };
@@ -69,7 +94,9 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold">{mode === "pending" ? "Pending Deposits" : "Payment Log"}</h1>
+        <h1 className="text-2xl font-semibold">
+          {mode === "pending" ? "Pending Deposits" : "Payment Log"}
+        </h1>
         <p className="text-sm text-muted-foreground">{rows.length} entries</p>
       </div>
       <Card>
@@ -98,33 +125,43 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
             </label>
           )}
           <Table>
-            <TableHeader><TableRow>
-              <TableHead>User</TableHead><TableHead>Amount</TableHead><TableHead>Method</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead>
-              {mode === "pending" && <TableHead className="text-right">Actions</TableHead>}
-            </TableRow></TableHeader>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Method</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Status</TableHead>
+                {mode === "pending" && <TableHead className="text-right">Actions</TableHead>}
+              </TableRow>
+            </TableHeader>
             <TableBody>
-              {loading ? <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Loading…</TableCell></TableRow>
-                : rows.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No entries</TableCell></TableRow>
-                : rows.map((d) => (
-                <TableRow key={d.id}>
-                  <TableCell>
-                    <p className="text-sm font-medium">{d.profiles?.full_name || "—"}</p>
-                    <p className="text-xs text-muted-foreground">{d.profiles?.email}</p>
-                  </TableCell>
-                  <TableCell className="font-semibold">${Number(d.amount).toLocaleString()}</TableCell>
-                  <TableCell className="text-sm capitalize">{d.method || "—"}</TableCell>
-                  <TableCell className="text-sm">{new Date(d.created_at).toLocaleString()}</TableCell>
-                  <TableCell><StatusBadge status={d.status} /></TableCell>
-                  {mode === "pending" && (
-                    <TableCell className="text-right space-x-1">
-                      <Button size="sm" onClick={() => review(d, "approved")}>Approve</Button>
-                      <Button size="sm" variant="destructive" onClick={() => review(d, "rejected")}>Reject</Button>
-                      <Button size="sm" variant="outline" onClick={() => review(d, "failed")}>Failed</Button>
-                      <Button size="sm" variant="outline" onClick={() => review(d, "canceled")}>Cancel</Button>
+              {loading ? (
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Loading…</TableCell></TableRow>
+              ) : rows.length === 0 ? (
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No deposit requests</TableCell></TableRow>
+              ) : (
+                rows.map((d) => (
+                  <TableRow key={d.id}>
+                    <TableCell>
+                      <p className="text-sm font-medium">{d.profiles?.full_name || "—"}</p>
+                      <p className="text-xs text-muted-foreground">{d.profiles?.email}</p>
                     </TableCell>
-                  )}
-                </TableRow>
-              ))}
+                    <TableCell className="font-semibold">${Number(d.amount).toLocaleString()}</TableCell>
+                    <TableCell className="text-sm capitalize">{d.method || "—"}</TableCell>
+                    <TableCell className="text-sm">{new Date(d.created_at).toLocaleString()}</TableCell>
+                    <TableCell><StatusBadge status={d.status} /></TableCell>
+                    {mode === "pending" && (
+                      <TableCell className="text-right space-x-1">
+                        <Button size="sm" onClick={() => review(d, "approved")}>Approve</Button>
+                        <Button size="sm" variant="destructive" onClick={() => review(d, "rejected")}>Reject</Button>
+                        <Button size="sm" variant="outline" onClick={() => review(d, "failed")}>Failed</Button>
+                        <Button size="sm" variant="outline" onClick={() => review(d, "canceled")}>Cancel</Button>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
