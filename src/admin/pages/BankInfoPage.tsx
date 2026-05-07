@@ -63,7 +63,7 @@ export default function BankInfoPage() {
 
   const del = async (id: string) => {
     if (!confirm("Delete this bank?")) return;
-    const { error } = await supabase.from("withdrawal_bank_info").delete().eq("id", id);
+    const { error } = await supabase.from("bank_deposit_info").delete().eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Deleted");
     load();
