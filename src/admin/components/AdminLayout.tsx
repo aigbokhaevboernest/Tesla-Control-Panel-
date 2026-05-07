@@ -1,6 +1,7 @@
 import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAdminAuth } from "../hooks/useAdminAuth";
+import { useAutoLogout } from "@/hooks/useAutoLogout";
 import { supabase } from "@/lib/supabaseClient";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,7 @@ export function AdminLayout() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  useAutoLogout();
 
   // auto-close drawer on navigation
   useEffect(() => { setOpen(false); }, [location.pathname]);
