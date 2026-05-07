@@ -20,7 +20,7 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
 
   const load = async () => {
     setLoading(true);
-    let q = supabase.from("deposits").select("*, profiles(full_name, email)").order("created_at", { ascending: false });
+    let q = supabase.from("deposit").select("*, profiles(full_name, email)").order("created_at", { ascending: false });
     if (mode === "pending") q = q.eq("status", "pending");
     else {
       if (status !== "all") q = q.eq("status", status);
@@ -36,7 +36,7 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
   useEffect(() => { document.title = mode === "pending" ? "Admin · Deposit Requests" : "Admin · Payment Log"; load(); }, [mode, status, from, to]);
 
   const review = async (d: any, newStatus: string) => {
-    const { error } = await supabase.from("deposits").update({ status: newStatus }).eq("id", d.id);
+    const { error } = await supabase.from("deposit").update({ status: newStatus }).eq("id", d.id);
     if (error) return toast.error(error.message);
     if (newStatus === "approved") {
       const { data: p } = await supabase
