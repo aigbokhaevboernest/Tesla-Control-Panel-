@@ -20,7 +20,7 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
     setLoading(true);
     let q = supabase
       .from("transactions")
-      .select("id, user_id, amount, method, status, created_at, wallet_address, bank_details, bank_name, account_number, routing_number, swift_code, i, cashapp_tag, paypal_email")
+      .select("id, user_id, amount, method, status, created_at, wallet_address, bank_details, bank_name, account_number, routing_number, swift_code, cashapp_tag, paypal_email")
       .eq("type", "deposit")
       .order("created_at", { ascending: false });
 
