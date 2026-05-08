@@ -57,7 +57,7 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
 
     if (newStatus === "approved") {
       const current = Number(d.profile?.total_balance || 0);
-      const amt = Number(d.amount);
+      const amt = Number(d.amount_usd);
       await supabase
         .from("profiles")
         .update({ total_balance: current + amt } as any)
@@ -78,7 +78,7 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
         email: d.profile?.email,
         intent: "deposit_rejected",
         subject: "Your deposit was rejected",
-        body: `Your deposit of ${formatMoney(Number(d.amount), d.profile?.currency)} was rejected.`,
+        body: `Your deposit of ${formatMoney(Number(d.amount_usd), d.profile?.currency)} was rejected.`,
       });
     }
 
@@ -115,7 +115,7 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
             <Card key={d.id} className="w-full shadow-sm">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xl font-bold">{formatMoney(Number(d.amount), d.profile?.currency)}</span>
+                  <span className="text-xl font-bold">{formatMoney(Number(d.amount_usd), d.profile?.currency)}</span>
                   <StatusBadge status={d.status} />
                 </div>
 
