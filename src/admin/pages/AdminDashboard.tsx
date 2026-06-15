@@ -70,7 +70,7 @@ export default function AdminDashboard() {
       const { error } = await supabase
         .from("user_roles")
         .delete()
-        .eq("user_id", u.user_id)
+        .eq("user_id", u.id)
         .eq("role", "admin");
       if (error) {
         toast.error(error.message);
@@ -95,9 +95,9 @@ export default function AdminDashboard() {
     if (adminAuth?.deleteUser) {
       try { await adminAuth.deleteUser(u.id); } catch { /* ignore */ }
     }
-    const { error } = await supabase.from("profiles").delete().eq("user_id", u.user_id);
+    const { error } = await supabase.from("profiles").delete().eq("user_id", u.id);
     if (error) {
-      const { error: e2 } = await supabase.from("profiles").update({ status: "blocked" }).eq("user_id", u.user_id);
+      const { error: e2 } = await supabase.from("profiles").update({ status: "blocked" }).eq("user_id", u.id);
       if (e2) { toast.error(e2.message); return; }
       toast.success(`Blocked ${u.email} (deletion not permitted)`);
     } else {
