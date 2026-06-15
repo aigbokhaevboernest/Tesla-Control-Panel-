@@ -70,7 +70,7 @@ export default function AdminDashboard() {
       const { error } = await supabase
         .from("user_roles")
         .delete()
-        .eq("user_id", u.user_id)
+        .eq("user_id", u.id)
         .eq("role", "admin");
       if (error) {
         toast.error(error.message);
