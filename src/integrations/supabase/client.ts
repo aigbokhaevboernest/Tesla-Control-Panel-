@@ -5,9 +5,6 @@ import type { Database } from './types'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-// ✅ Debug (remove later)
-console.log("SUPABASE URL:", SUPABASE_URL)
-console.log("SUPABASE ANON KEY:", SUPABASE_ANON_KEY)
 
 // ✅ Create client
 export const supabase = createClient<Database>(
