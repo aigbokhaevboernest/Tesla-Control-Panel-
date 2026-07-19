@@ -5,7 +5,6 @@ const supabase: any = supabaseTyped;
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 export default function AdminLogin() {
@@ -60,21 +59,16 @@ export default function AdminLogin() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4">
+    <main className="flex min-h-screen items-center justify-center bg-[#FAFAFA] px-4">
       <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-md border border-border bg-card">
-            <ShieldCheck className="h-5 w-5" />
-          </div>
-          <h1 className="font-mono text-lg font-semibold">admin.portal</h1>
-          <p className="text-xs text-muted-foreground">Authorized personnel only</p>
+        <div className="mb-8 text-center">
+          <h1 className="font-serif text-3xl text-[#1A1A1A]">Admin</h1>
+          <p className="mt-1 text-sm text-[#767676]">Sign in to continue</p>
         </div>
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-4 rounded-md border border-border bg-card p-6"
-        >
-          <div className="space-y-2">
-            <Label htmlFor="email" className="font-mono text-xs uppercase tracking-wider">
+
+        <form onSubmit={handleSubmit} className="space-y-4 rounded-md border border-[#E2E2E2] bg-white p-6">
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-xs text-[#767676]">
               Email
             </Label>
             <Input
@@ -84,11 +78,12 @@ export default function AdminLogin() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="font-mono"
+              className="border-[#E2E2E2] focus-visible:border-[#C81E3A] focus-visible:ring-[#C81E3A]/20"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password" className="font-mono text-xs uppercase tracking-wider">
+
+          <div className="space-y-1.5">
+            <Label htmlFor="password" className="text-xs text-[#767676]">
               Password
             </Label>
             <Input
@@ -98,10 +93,15 @@ export default function AdminLogin() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="font-mono"
+              className="border-[#E2E2E2] focus-visible:border-[#C81E3A] focus-visible:ring-[#C81E3A]/20"
             />
           </div>
-          <Button type="submit" className="w-full" disabled={loading}>
+
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[#C81E3A] text-white hover:bg-[#A8172F] disabled:opacity-60"
+          >
             {loading ? "Signing in…" : "Sign in"}
           </Button>
         </form>
