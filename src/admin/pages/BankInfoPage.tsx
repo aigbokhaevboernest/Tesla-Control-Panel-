@@ -62,7 +62,12 @@ export default function BankInfoPage() {
         .ilike("email", `%${userSearch.trim()}%`)
         .limit(6);
       setSearching(false);
-      if (!error) setUserResults((data ?? []) as Profile[]);
+      if (error) {
+        toast.error(error.message);
+        setUserResults([]);
+      } else {
+        setUserResults((data ?? []) as Profile[]);
+      }
     }, 300);
     return () => clearTimeout(t);
   }, [userSearch]);
