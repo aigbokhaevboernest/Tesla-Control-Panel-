@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Trash2, Pencil, Plus, Landmark } from "lucide-react";
+import { Trash2, Pencil, Plus, Landmark, X } from "lucide-react";
+
+type ExtraField = { label: string; value: string };
 
 type Bank = {
   id: string;
@@ -17,6 +19,7 @@ type Bank = {
   routing_number: string | null;
   swift_code: string | null;
   is_active: boolean;
+  extra_fields: ExtraField[] | null;
 };
 
 export default function BankInfoPage() {
@@ -37,17 +40,41 @@ export default function BankInfoPage() {
 
   useEffect(() => { document.title = "Admin · Bank Info"; load(); }, []);
 
+  const extraFields = editing?.extra_fields ?? [];
+
+  const setExtraFields = (next: ExtraField[]) => {
+    if (!editing) return;
+    setEditing({ ...editing, extra_fields: next });
+  };
+
+  const addExtraField = () => setExtraFields([...extraFields, { label: "", value: "" }]);
+
+  const updateExtraField = (idx: number, key: "label" | "value", val: string) => {
+    const next = extraFields.slice();
+    next[idx] = { ...next[idx], [key]: val };
+    setExtraFields(next);
+  };
+
+  const removeExtraField = (idx: number) => {
+    setExtraFields(extraFields.filter((_, i) => i !== idx));
+  };
+
   const save = async () => {
     if (!editing) return;
     const { bank_name, account_number, account_name, routing_number, swift_code } = editing;
     if (!bank_name?.trim() || !account_number?.trim() || !account_name?.trim()) {
       return toast.error("Bank name, account name and account number are required");
     }
+    // drop any custom field rows left blank
+    const cleanedExtra = (editing.extra_fields ?? []).filter(
+      (f) => f.label.trim() && f.value.trim()
+    );
     const payload = {
       bank_name, account_number, account_name,
       routing_number: routing_number || null,
       swift_code: swift_code || null,
-      is_active: editing.is_active ?? true,
+      is_active: !!editing.is_active,
+      extra_fields: cleanedExtra,
     };
     if (editing.id) {
       const { error } = await supabase.from("bank_deposit_info").update(payload).eq("id", editing.id);
@@ -86,7 +113,7 @@ export default function BankInfoPage() {
           <h1 className="text-xl font-semibold sm:text-2xl">Bank Info</h1>
           <p className="text-xs text-muted-foreground sm:text-sm">Bank details shown to users for deposits</p>
         </div>
-        <Button size="sm" onClick={() => setEditing({ is_active: true })}>
+        <Button size="sm" onClick={() => setEditing({ is_active: false, extra_fields: [] })}>
           <Plus className="mr-1.5 h-4 w-4" /> Add
         </Button>
       </div>
@@ -116,9 +143,42 @@ export default function BankInfoPage() {
               <Input value={editing.swift_code ?? ""} onChange={(e) => setEditing({ ...editing, swift_code: e.target.value })} />
             </div>
             <div className="flex items-center gap-2 pt-6">
-              <Switch checked={editing.is_active ?? true} onCheckedChange={(v) => setEditing({ ...editing, is_active: v })} />
+              <Switch checked={!!editing.is_active} onCheckedChange={(v) => setEditing({ ...editing, is_active: !!v })} />
               <Label>Active (visible to users)</Label>
             </div>
+
+            {/* Custom fields: fully free-form label/value pairs, unique per entry */}
+            <div className="sm:col-span-2 space-y-2 border-t pt-3">
+              <div className="flex items-center justify-between">
+                <Label>Custom Fields</Label>
+                <Button size="sm" variant="outline" onClick={addExtraField}>
+                  <Plus className="mr-1 h-3.5 w-3.5" /> Add Field
+                </Button>
+              </div>
+              {extraFields.length === 0 && (
+                <p className="text-xs text-muted-foreground">No custom fields yet.</p>
+              )}
+              {extraFields.map((f, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <Input
+                    placeholder="Label (e.g. IBAN)"
+                    value={f.label}
+                    onChange={(e) => updateExtraField(idx, "label", e.target.value)}
+                    className="flex-1"
+                  />
+                  <Input
+                    placeholder="Value"
+                    value={f.value}
+                    onChange={(e) => updateExtraField(idx, "value", e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button size="icon" variant="ghost" onClick={() => removeExtraField(idx)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+
             <div className="sm:col-span-2 flex gap-2">
               <Button onClick={save}>Save</Button>
               <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
@@ -142,14 +202,19 @@ export default function BankInfoPage() {
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex items-start justify-between gap-2">
                     <p className="truncate text-sm font-semibold">{b.bank_name}</p>
-                    <Switch checked={b.is_active} onCheckedChange={() => toggleActive(b)} />
+                    <Switch checked={!!b.is_active} onCheckedChange={() => toggleActive(b)} />
                   </div>
                   <p className="truncate text-xs text-muted-foreground">{b.account_name}</p>
                   <p className="truncate font-mono text-xs">{b.account_number}</p>
                   {b.routing_number && <p className="truncate text-[11px] text-muted-foreground">Routing: <span className="font-mono">{b.routing_number}</span></p>}
                   {b.swift_code && <p className="truncate text-[11px] text-muted-foreground">SWIFT: <span className="font-mono">{b.swift_code}</span></p>}
+                  {(b.extra_fields ?? []).map((f, i) => (
+                    <p key={i} className="truncate text-[11px] text-muted-foreground">
+                      {f.label}: <span className="font-mono">{f.value}</span>
+                    </p>
+                  ))}
                   <div className="flex gap-2 pt-2">
-                    <Button size="sm" variant="outline" onClick={() => setEditing(b)}>
+                    <Button size="sm" variant="outline" onClick={() => setEditing({ ...b, extra_fields: b.extra_fields ?? [] })}>
                       <Pencil className="mr-1 h-3.5 w-3.5" /> Edit
                     </Button>
                     <Button size="sm" variant="destructive" onClick={() => del(b.id)}>
