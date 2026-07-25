@@ -20,7 +20,7 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
     setLoading(true);
     let q = supabase
       .from("transactions")
-.select("id, user_id, amount_usd, method, status, created_at, wallet_address, bank_details, bank_name, account_number, routing_number, swift_code, cashapp_tag, paypal_email, bank_fields")
+      .select("id, user_id, amount_usd, method, status, created_at, wallet_address, bank_details, bank_name, account_number, routing_number, swift_code, cashapp_tag, paypal_email, bank_fields")
       .eq("type", "deposit")
       .order("created_at", { ascending: false });
 
@@ -87,14 +87,12 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
   };
 
   const getDetails = (d: Row) => {
-  if (Array.isArray(d.bank_fields) && d.bank_fields.length) {
-    return d.bank_fields.map((f: any) => `${f.label}: ${f.value}`).join(" · ");
-  }
-  return [d.bank_name, d.account_number, d.routing_number, d.swift_code, d.venmo_handle, d.wallet_address, d.cashapp_tag, d.paypal_email, d.bank_details]
-    .filter(Boolean).join(" · ") || "—";
-};
-
+    if (Array.isArray(d.bank_fields) && d.bank_fields.length) {
+      return d.bank_fields.map((f: any) => `${f.label}: ${f.value}`).join(" · ");
+    }
+    return [d.bank_name, d.account_number, d.routing_number, d.swift_code, d.venmo_handle, d.wallet_address, d.cashapp_tag, d.paypal_email, d.bank_details]
       .filter(Boolean).join(" · ") || "—";
+  };
 
   return (
     <div className="w-full max-w-lg mx-auto px-3 py-4 space-y-4">
