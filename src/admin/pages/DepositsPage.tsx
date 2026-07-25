@@ -86,8 +86,14 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
     load();
   };
 
-  const getDetails = (d: Row) =>
-    [d.bank_name, d.account_number, d.routing_number, d.swift_code, d.venmo_handle,d.wallet_address, d.cashapp_tag, d.paypal_email, d.bank_details]
+  const getDetails = (d: Row) => {
+  if (Array.isArray(d.bank_fields) && d.bank_fields.length) {
+    return d.bank_fields.map((f: any) => `${f.label}: ${f.value}`).join(" · ");
+  }
+  return [d.bank_name, d.account_number, d.routing_number, d.swift_code, d.venmo_handle, d.wallet_address, d.cashapp_tag, d.paypal_email, d.bank_details]
+    .filter(Boolean).join(" · ") || "—";
+};
+
       .filter(Boolean).join(" · ") || "—";
 
   return (
