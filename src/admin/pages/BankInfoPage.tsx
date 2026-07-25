@@ -1,5 +1,3 @@
-
-
 import { useEffect, useState } from "react";
 import { supabase as supabaseTyped } from "@/lib/supabaseClient";
 const supabase: any = supabaseTyped;
