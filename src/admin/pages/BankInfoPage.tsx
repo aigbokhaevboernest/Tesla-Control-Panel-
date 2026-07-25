@@ -7,46 +7,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Trash2, Pencil, Plus, Landmark, X, Settings2 } from "lucide-react";
+import { Trash2, Pencil, Plus, Landmark, X } from "lucide-react";
 
-type ExtraField = { label: string; value: string };
+type BankField = { label: string; value: string };
 
 type Bank = {
   id: string;
-  bank_name: string;
-  account_number: string;
-  account_name: string;
-  routing_number: string | null;
-  swift_code: string | null;
   is_active: boolean;
-  extra_fields: ExtraField[] | null;
-};
-
-type FieldLabels = {
-  bank_name_label: string;
-  account_name_label: string;
-  account_number_label: string;
-  routing_number_label: string;
-  swift_code_label: string;
-};
-
-const DEFAULT_LABELS: FieldLabels = {
-  bank_name_label: "Bank Name",
-  account_name_label: "Account Name",
-  account_number_label: "Account Number",
-  routing_number_label: "Routing Number",
-  swift_code_label: "SWIFT Code",
+  fields: BankField[];
 };
 
 export default function BankInfoPage() {
   const [rows, setRows] = useState<Bank[]>([]);
   const [editing, setEditing] = useState<Partial<Bank> | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const [labels, setLabels] = useState<FieldLabels>(DEFAULT_LABELS);
-  const [labelsDraft, setLabelsDraft] = useState<FieldLabels>(DEFAULT_LABELS);
-  const [editingLabels, setEditingLabels] = useState(false);
-  const [savingLabels, setSavingLabels] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -55,77 +29,46 @@ export default function BankInfoPage() {
       .select("*")
       .order("created_at", { ascending: false });
     if (error) toast.error(error.message);
-    setRows((data ?? []) as Bank[]);
+    setRows(
+      ((data ?? []) as any[]).map((r) => ({
+        id: r.id,
+        is_active: r.is_active,
+        fields: r.fields ?? [],
+      }))
+    );
     setLoading(false);
   };
 
-  const loadLabels = async () => {
-    const { data, error } = await supabase
-      .from("bank_field_labels")
-      .select("*")
-      .eq("id", 1)
-      .maybeSingle();
-    if (!error && data) {
-      const l = {
-        bank_name_label: data.bank_name_label ?? DEFAULT_LABELS.bank_name_label,
-        account_name_label: data.account_name_label ?? DEFAULT_LABELS.account_name_label,
-        account_number_label: data.account_number_label ?? DEFAULT_LABELS.account_number_label,
-        routing_number_label: data.routing_number_label ?? DEFAULT_LABELS.routing_number_label,
-        swift_code_label: data.swift_code_label ?? DEFAULT_LABELS.swift_code_label,
-      };
-      setLabels(l);
-      setLabelsDraft(l);
-    }
-  };
+  useEffect(() => { document.title = "Admin · Bank Info"; load(); }, []);
 
-  useEffect(() => { document.title = "Admin · Bank Info"; load(); loadLabels(); }, []);
+  const fields = editing?.fields ?? [];
 
-  const saveLabels = async () => {
-    setSavingLabels(true);
-    const { error } = await supabase
-      .from("bank_field_labels")
-      .upsert({ id: 1, ...labelsDraft, updated_at: new Date().toISOString() });
-    setSavingLabels(false);
-    if (error) return toast.error(error.message);
-    setLabels(labelsDraft);
-    setEditingLabels(false);
-    toast.success("Field labels updated");
-  };
-
-  const extraFields = editing?.extra_fields ?? [];
-
-  const setExtraFields = (next: ExtraField[]) => {
+  const setFields = (next: BankField[]) => {
     if (!editing) return;
-    setEditing({ ...editing, extra_fields: next });
+    setEditing({ ...editing, fields: next });
   };
 
-  const addExtraField = () => setExtraFields([...extraFields, { label: "", value: "" }]);
+  const addField = () => setFields([...fields, { label: "", value: "" }]);
 
-  const updateExtraField = (idx: number, key: "label" | "value", val: string) => {
-    const next = extraFields.slice();
+  const updateField = (idx: number, key: "label" | "value", val: string) => {
+    const next = fields.slice();
     next[idx] = { ...next[idx], [key]: val };
-    setExtraFields(next);
+    setFields(next);
   };
 
-  const removeExtraField = (idx: number) => {
-    setExtraFields(extraFields.filter((_, i) => i !== idx));
+  const removeField = (idx: number) => {
+    setFields(fields.filter((_, i) => i !== idx));
   };
 
   const save = async () => {
     if (!editing) return;
-    const { bank_name, account_number, account_name, routing_number, swift_code } = editing;
-    if (!bank_name?.trim() || !account_number?.trim() || !account_name?.trim()) {
-      return toast.error(`${labels.bank_name_label}, ${labels.account_name_label} and ${labels.account_number_label} are required`);
+    const cleaned = (editing.fields ?? []).filter((f) => f.label.trim() && f.value.trim());
+    if (cleaned.length === 0) {
+      return toast.error("Add at least one field");
     }
-    const cleanedExtra = (editing.extra_fields ?? []).filter(
-      (f) => f.label.trim() && f.value.trim()
-    );
     const payload = {
-      bank_name, account_number, account_name,
-      routing_number: routing_number || null,
-      swift_code: swift_code || null,
       is_active: !!editing.is_active,
-      extra_fields: cleanedExtra,
+      fields: cleaned,
     };
     if (editing.id) {
       const { error } = await supabase.from("bank_deposit_info").update(payload).eq("id", editing.id);
@@ -164,112 +107,52 @@ export default function BankInfoPage() {
           <h1 className="text-xl font-semibold sm:text-2xl">Bank Info</h1>
           <p className="text-xs text-muted-foreground sm:text-sm">Bank details shown to users for deposits</p>
         </div>
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => { setLabelsDraft(labels); setEditingLabels((v) => !v); }}>
-            <Settings2 className="mr-1.5 h-4 w-4" /> Field Names
-          </Button>
-          <Button size="sm" onClick={() => setEditing({ is_active: false, extra_fields: [] })}>
-            <Plus className="mr-1.5 h-4 w-4" /> Add
-          </Button>
-        </div>
+        <Button size="sm" onClick={() => setEditing({ is_active: false, fields: [{ label: "", value: "" }] })}>
+          <Plus className="mr-1.5 h-4 w-4" /> Add
+        </Button>
       </div>
-
-      {editingLabels && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Field Names</CardTitle>
-            <p className="text-xs text-muted-foreground">Rename the labels shown on this form and on the user deposit page.</p>
-          </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <Label>Label for "Bank Name" field</Label>
-              <Input value={labelsDraft.bank_name_label} onChange={(e) => setLabelsDraft({ ...labelsDraft, bank_name_label: e.target.value })} />
-            </div>
-            <div>
-              <Label>Label for "Account Name" field</Label>
-              <Input value={labelsDraft.account_name_label} onChange={(e) => setLabelsDraft({ ...labelsDraft, account_name_label: e.target.value })} />
-            </div>
-            <div>
-              <Label>Label for "Account Number" field</Label>
-              <Input value={labelsDraft.account_number_label} onChange={(e) => setLabelsDraft({ ...labelsDraft, account_number_label: e.target.value })} />
-            </div>
-            <div>
-              <Label>Label for "Routing Number" field</Label>
-              <Input value={labelsDraft.routing_number_label} onChange={(e) => setLabelsDraft({ ...labelsDraft, routing_number_label: e.target.value })} />
-            </div>
-            <div>
-              <Label>Label for "SWIFT Code" field</Label>
-              <Input value={labelsDraft.swift_code_label} onChange={(e) => setLabelsDraft({ ...labelsDraft, swift_code_label: e.target.value })} />
-            </div>
-            <div className="sm:col-span-2 flex gap-2">
-              <Button onClick={saveLabels} disabled={savingLabels}>{savingLabels ? "Saving…" : "Save Labels"}</Button>
-              <Button variant="outline" onClick={() => setEditingLabels(false)}>Cancel</Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {editing && (
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base">{editing.id ? "Edit Bank" : "New Bank"}</CardTitle></CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <Label>{labels.bank_name_label} *</Label>
-              <Input value={editing.bank_name ?? ""} onChange={(e) => setEditing({ ...editing, bank_name: e.target.value })} />
-            </div>
-            <div>
-              <Label>{labels.account_name_label} *</Label>
-              <Input value={editing.account_name ?? ""} onChange={(e) => setEditing({ ...editing, account_name: e.target.value })} />
-            </div>
-            <div>
-              <Label>{labels.account_number_label} *</Label>
-              <Input value={editing.account_number ?? ""} onChange={(e) => setEditing({ ...editing, account_number: e.target.value })} />
-            </div>
-            <div>
-              <Label>{labels.routing_number_label}</Label>
-              <Input value={editing.routing_number ?? ""} onChange={(e) => setEditing({ ...editing, routing_number: e.target.value })} />
-            </div>
-            <div>
-              <Label>{labels.swift_code_label}</Label>
-              <Input value={editing.swift_code ?? ""} onChange={(e) => setEditing({ ...editing, swift_code: e.target.value })} />
-            </div>
-            <div className="flex items-center gap-2 pt-6">
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-2">
               <Switch checked={!!editing.is_active} onCheckedChange={(v) => setEditing({ ...editing, is_active: !!v })} />
               <Label>Active (visible to users)</Label>
             </div>
 
-            <div className="sm:col-span-2 space-y-2 border-t pt-3">
+            <div className="space-y-2 border-t pt-3">
               <div className="flex items-center justify-between">
-                <Label>Custom Fields</Label>
-                <Button size="sm" variant="outline" onClick={addExtraField}>
+                <Label>Fields</Label>
+                <Button size="sm" variant="outline" onClick={addField}>
                   <Plus className="mr-1 h-3.5 w-3.5" /> Add Field
                 </Button>
               </div>
-              {extraFields.length === 0 && (
-                <p className="text-xs text-muted-foreground">No custom fields yet.</p>
+              {fields.length === 0 && (
+                <p className="text-xs text-muted-foreground">No fields yet.</p>
               )}
-              {extraFields.map((f, idx) => (
+              {fields.map((f, idx) => (
                 <div key={idx} className="flex items-center gap-2">
                   <Input
-                    placeholder="Label (e.g. IBAN)"
+                    placeholder="Label (e.g. Bank Name, IBAN, SWIFT)"
                     value={f.label}
-                    onChange={(e) => updateExtraField(idx, "label", e.target.value)}
+                    onChange={(e) => updateField(idx, "label", e.target.value)}
                     className="flex-1"
                   />
                   <Input
                     placeholder="Value"
                     value={f.value}
-                    onChange={(e) => updateExtraField(idx, "value", e.target.value)}
+                    onChange={(e) => updateField(idx, "value", e.target.value)}
                     className="flex-1"
                   />
-                  <Button size="icon" variant="ghost" onClick={() => removeExtraField(idx)}>
+                  <Button size="icon" variant="ghost" onClick={() => removeField(idx)}>
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
               ))}
             </div>
 
-            <div className="sm:col-span-2 flex gap-2">
+            <div className="flex gap-2">
               <Button onClick={save}>Save</Button>
               <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
             </div>
@@ -291,20 +174,18 @@ export default function BankInfoPage() {
                 </div>
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="truncate text-sm font-semibold">{b.bank_name}</p>
+                    <p className="truncate text-sm font-semibold">
+                      {b.fields[0]?.value || "Bank"}
+                    </p>
                     <Switch checked={!!b.is_active} onCheckedChange={() => toggleActive(b)} />
                   </div>
-                  <p className="truncate text-xs text-muted-foreground">{b.account_name}</p>
-                  <p className="truncate font-mono text-xs">{b.account_number}</p>
-                  {b.routing_number && <p className="truncate text-[11px] text-muted-foreground">{labels.routing_number_label}: <span className="font-mono">{b.routing_number}</span></p>}
-                  {b.swift_code && <p className="truncate text-[11px] text-muted-foreground">{labels.swift_code_label}: <span className="font-mono">{b.swift_code}</span></p>}
-                  {(b.extra_fields ?? []).map((f, i) => (
+                  {b.fields.map((f, i) => (
                     <p key={i} className="truncate text-[11px] text-muted-foreground">
                       {f.label}: <span className="font-mono">{f.value}</span>
                     </p>
                   ))}
                   <div className="flex gap-2 pt-2">
-                    <Button size="sm" variant="outline" onClick={() => setEditing({ ...b, extra_fields: b.extra_fields ?? [] })}>
+                    <Button size="sm" variant="outline" onClick={() => setEditing({ ...b, fields: b.fields.length ? b.fields : [{ label: "", value: "" }] })}>
                       <Pencil className="mr-1 h-3.5 w-3.5" /> Edit
                     </Button>
                     <Button size="sm" variant="destructive" onClick={() => del(b.id)}>
