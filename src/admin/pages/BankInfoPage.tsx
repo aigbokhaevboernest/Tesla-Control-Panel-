@@ -1,3 +1,5 @@
+
+
 import { useEffect, useState } from "react";
 import { supabase as supabaseTyped } from "@/lib/supabaseClient";
 const supabase: any = supabaseTyped;
@@ -7,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Trash2, Pencil, Plus, Landmark, X } from "lucide-react";
+import { Trash2, Pencil, Plus, Landmark, X, Settings2 } from "lucide-react";
 
 type ExtraField = { label: string; value: string };
 
@@ -22,10 +24,31 @@ type Bank = {
   extra_fields: ExtraField[] | null;
 };
 
+type FieldLabels = {
+  bank_name_label: string;
+  account_name_label: string;
+  account_number_label: string;
+  routing_number_label: string;
+  swift_code_label: string;
+};
+
+const DEFAULT_LABELS: FieldLabels = {
+  bank_name_label: "Bank Name",
+  account_name_label: "Account Name",
+  account_number_label: "Account Number",
+  routing_number_label: "Routing Number",
+  swift_code_label: "SWIFT Code",
+};
+
 export default function BankInfoPage() {
   const [rows, setRows] = useState<Bank[]>([]);
   const [editing, setEditing] = useState<Partial<Bank> | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [labels, setLabels] = useState<FieldLabels>(DEFAULT_LABELS);
+  const [labelsDraft, setLabelsDraft] = useState<FieldLabels>(DEFAULT_LABELS);
+  const [editingLabels, setEditingLabels] = useState(false);
+  const [savingLabels, setSavingLabels] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -38,7 +61,38 @@ export default function BankInfoPage() {
     setLoading(false);
   };
 
-  useEffect(() => { document.title = "Admin · Bank Info"; load(); }, []);
+  const loadLabels = async () => {
+    const { data, error } = await supabase
+      .from("bank_field_labels")
+      .select("*")
+      .eq("id", 1)
+      .maybeSingle();
+    if (!error && data) {
+      const l = {
+        bank_name_label: data.bank_name_label ?? DEFAULT_LABELS.bank_name_label,
+        account_name_label: data.account_name_label ?? DEFAULT_LABELS.account_name_label,
+        account_number_label: data.account_number_label ?? DEFAULT_LABELS.account_number_label,
+        routing_number_label: data.routing_number_label ?? DEFAULT_LABELS.routing_number_label,
+        swift_code_label: data.swift_code_label ?? DEFAULT_LABELS.swift_code_label,
+      };
+      setLabels(l);
+      setLabelsDraft(l);
+    }
+  };
+
+  useEffect(() => { document.title = "Admin · Bank Info"; load(); loadLabels(); }, []);
+
+  const saveLabels = async () => {
+    setSavingLabels(true);
+    const { error } = await supabase
+      .from("bank_field_labels")
+      .upsert({ id: 1, ...labelsDraft, updated_at: new Date().toISOString() });
+    setSavingLabels(false);
+    if (error) return toast.error(error.message);
+    setLabels(labelsDraft);
+    setEditingLabels(false);
+    toast.success("Field labels updated");
+  };
 
   const extraFields = editing?.extra_fields ?? [];
 
@@ -63,9 +117,8 @@ export default function BankInfoPage() {
     if (!editing) return;
     const { bank_name, account_number, account_name, routing_number, swift_code } = editing;
     if (!bank_name?.trim() || !account_number?.trim() || !account_name?.trim()) {
-      return toast.error("Bank name, account name and account number are required");
+      return toast.error(`${labels.bank_name_label}, ${labels.account_name_label} and ${labels.account_number_label} are required`);
     }
-    // drop any custom field rows left blank
     const cleanedExtra = (editing.extra_fields ?? []).filter(
       (f) => f.label.trim() && f.value.trim()
     );
@@ -113,33 +166,73 @@ export default function BankInfoPage() {
           <h1 className="text-xl font-semibold sm:text-2xl">Bank Info</h1>
           <p className="text-xs text-muted-foreground sm:text-sm">Bank details shown to users for deposits</p>
         </div>
-        <Button size="sm" onClick={() => setEditing({ is_active: false, extra_fields: [] })}>
-          <Plus className="mr-1.5 h-4 w-4" /> Add
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => { setLabelsDraft(labels); setEditingLabels((v) => !v); }}>
+            <Settings2 className="mr-1.5 h-4 w-4" /> Field Names
+          </Button>
+          <Button size="sm" onClick={() => setEditing({ is_active: false, extra_fields: [] })}>
+            <Plus className="mr-1.5 h-4 w-4" /> Add
+          </Button>
+        </div>
       </div>
+
+      {editingLabels && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Field Names</CardTitle>
+            <p className="text-xs text-muted-foreground">Rename the labels shown on this form and on the user deposit page.</p>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label>Label for "Bank Name" field</Label>
+              <Input value={labelsDraft.bank_name_label} onChange={(e) => setLabelsDraft({ ...labelsDraft, bank_name_label: e.target.value })} />
+            </div>
+            <div>
+              <Label>Label for "Account Name" field</Label>
+              <Input value={labelsDraft.account_name_label} onChange={(e) => setLabelsDraft({ ...labelsDraft, account_name_label: e.target.value })} />
+            </div>
+            <div>
+              <Label>Label for "Account Number" field</Label>
+              <Input value={labelsDraft.account_number_label} onChange={(e) => setLabelsDraft({ ...labelsDraft, account_number_label: e.target.value })} />
+            </div>
+            <div>
+              <Label>Label for "Routing Number" field</Label>
+              <Input value={labelsDraft.routing_number_label} onChange={(e) => setLabelsDraft({ ...labelsDraft, routing_number_label: e.target.value })} />
+            </div>
+            <div>
+              <Label>Label for "SWIFT Code" field</Label>
+              <Input value={labelsDraft.swift_code_label} onChange={(e) => setLabelsDraft({ ...labelsDraft, swift_code_label: e.target.value })} />
+            </div>
+            <div className="sm:col-span-2 flex gap-2">
+              <Button onClick={saveLabels} disabled={savingLabels}>{savingLabels ? "Saving…" : "Save Labels"}</Button>
+              <Button variant="outline" onClick={() => setEditingLabels(false)}>Cancel</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {editing && (
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base">{editing.id ? "Edit Bank" : "New Bank"}</CardTitle></CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2">
             <div>
-              <Label>Bank Name *</Label>
+              <Label>{labels.bank_name_label} *</Label>
               <Input value={editing.bank_name ?? ""} onChange={(e) => setEditing({ ...editing, bank_name: e.target.value })} />
             </div>
             <div>
-              <Label>Account Name *</Label>
+              <Label>{labels.account_name_label} *</Label>
               <Input value={editing.account_name ?? ""} onChange={(e) => setEditing({ ...editing, account_name: e.target.value })} />
             </div>
             <div>
-              <Label>Account Number *</Label>
+              <Label>{labels.account_number_label} *</Label>
               <Input value={editing.account_number ?? ""} onChange={(e) => setEditing({ ...editing, account_number: e.target.value })} />
             </div>
             <div>
-              <Label>Routing Number</Label>
+              <Label>{labels.routing_number_label}</Label>
               <Input value={editing.routing_number ?? ""} onChange={(e) => setEditing({ ...editing, routing_number: e.target.value })} />
             </div>
             <div>
-              <Label>SWIFT Code</Label>
+              <Label>{labels.swift_code_label}</Label>
               <Input value={editing.swift_code ?? ""} onChange={(e) => setEditing({ ...editing, swift_code: e.target.value })} />
             </div>
             <div className="flex items-center gap-2 pt-6">
@@ -147,7 +240,6 @@ export default function BankInfoPage() {
               <Label>Active (visible to users)</Label>
             </div>
 
-            {/* Custom fields: fully free-form label/value pairs, unique per entry */}
             <div className="sm:col-span-2 space-y-2 border-t pt-3">
               <div className="flex items-center justify-between">
                 <Label>Custom Fields</Label>
@@ -206,8 +298,8 @@ export default function BankInfoPage() {
                   </div>
                   <p className="truncate text-xs text-muted-foreground">{b.account_name}</p>
                   <p className="truncate font-mono text-xs">{b.account_number}</p>
-                  {b.routing_number && <p className="truncate text-[11px] text-muted-foreground">Routing: <span className="font-mono">{b.routing_number}</span></p>}
-                  {b.swift_code && <p className="truncate text-[11px] text-muted-foreground">SWIFT: <span className="font-mono">{b.swift_code}</span></p>}
+                  {b.routing_number && <p className="truncate text-[11px] text-muted-foreground">{labels.routing_number_label}: <span className="font-mono">{b.routing_number}</span></p>}
+                  {b.swift_code && <p className="truncate text-[11px] text-muted-foreground">{labels.swift_code_label}: <span className="font-mono">{b.swift_code}</span></p>}
                   {(b.extra_fields ?? []).map((f, i) => (
                     <p key={i} className="truncate text-[11px] text-muted-foreground">
                       {f.label}: <span className="font-mono">{f.value}</span>
