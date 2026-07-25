@@ -1,7 +1,7 @@
-// Email notification helper — currently STUBBED.
-// Logs to email_log table when admin opts in via the "send email" tick.
-// Wire to a real provider later (Lovable Emails / Resend) without changing call sites.
+// Email notification helper — now wired to the "send-email" edge function (Resend).
+// Still logs to email_log when admin opts in via the "send email" tick.
 import { supabase } from "@/lib/supabaseClient";
+import { toast } from "sonner";
 
 export type EmailIntent =
   | "deposit_approved"
@@ -14,6 +14,9 @@ export type EmailIntent =
   | "kyc_approved"
   | "kyc_rejected";
 
+// No per-admin routing yet — every outbound user notification is also copied here.
+const ADMIN_COPY_EMAIL = "jameshilterson@gmail.com";
+
 export async function notifyEmail(opts: {
   send: boolean;
   userId: string;
@@ -23,14 +26,66 @@ export async function notifyEmail(opts: {
   body?: string;
 }) {
   if (!opts.send || !opts.email) return;
+
   const { data: u } = await supabase.auth.getUser();
-  await supabase.from("email_log").insert({
-    recipient_email: opts.email,
-    recipient_user_id: opts.userId,
-    subject: opts.subject,
-    body: opts.body ?? "",
-    email_type: opts.intent,
-    status: "queued",
-    sent_by: u.user?.id ?? null,
-  });
+
+  const { data: logRow, error: logError } = await supabase
+    .from("email_log")
+    .insert({
+      recipient_email: opts.email,
+      recipient_user_id: opts.userId,
+      subject: opts.subject,
+      body: opts.body ?? "",
+      email_type: opts.intent,
+      status: "queued",
+      sent_by: u.user?.id ?? null,
+    })
+    .select()
+    .single();
+
+  if (logError) {
+    toast.error(`Failed to log email: ${logError.message}`);
+  }
+
+  try {
+    const { data, error } = await supabase.functions.invoke("send-email", {
+      body: {
+        email: opts.email,
+        subject: opts.subject,
+        message: opts.body ?? opts.subject,
+      },
+    });
+
+    if (error || data?.ok === false) {
+      const msg = error?.message ?? data?.error ?? "Unknown error";
+      toast.error(`Email failed to send: ${msg}`);
+      if (logRow?.id) {
+        await supabase.from("email_log").update({ status: "failed" }).eq("id", logRow.id);
+      }
+      return;
+    }
+
+    if (logRow?.id) {
+      await supabase.from("email_log").update({ status: "sent" }).eq("id", logRow.id);
+    }
+
+    // Best-effort admin copy — failures here don't block or surface to the reviewer.
+    supabase.functions
+      .invoke("send-email", {
+        body: {
+          email: ADMIN_COPY_EMAIL,
+          subject: `[Copy] ${opts.subject}`,
+          message: opts.body ?? opts.subject,
+        },
+      })
+      .catch(() => {});
+
+    toast.success("Notification email sent");
+  } catch (err: any) {
+    const msg = err?.message ?? "Unknown error";
+    toast.error(`Email failed to send: ${msg}`);
+    if (logRow?.id) {
+      await supabase.from("email_log").update({ status: "failed" }).eq("id", logRow.id);
+    }
+  }
 }
