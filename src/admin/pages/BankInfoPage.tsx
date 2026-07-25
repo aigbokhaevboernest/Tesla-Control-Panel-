@@ -18,7 +18,7 @@ type Bank = {
   assigned_user_ids: string[];
 };
 
-type Profile = { id: string; email: string };
+type Profile = { user_id: string; email: string };
 
 export default function BankInfoPage() {
   const [rows, setRows] = useState<Bank[]>([]);
@@ -58,7 +58,7 @@ export default function BankInfoPage() {
       setSearching(true);
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, email")
+        .select("user_id, email")
         .ilike("email", `%${userSearch.trim()}%`)
         .limit(6);
       setSearching(false);
@@ -102,18 +102,18 @@ export default function BankInfoPage() {
     setUserResults([]);
     const ids = b.assigned_user_ids ?? [];
     if (ids.length) {
-      const { data } = await supabase.from("profiles").select("id, email").in("id", ids);
+      const { data } = await supabase.from("profiles").select("user_id, email").in("user_id", ids);
       const map: Record<string, string> = {};
-      (data ?? []).forEach((p: Profile) => { map[p.id] = p.email; });
+      (data ?? []).forEach((p: Profile) => { map[p.user_id] = p.email; });
       setProfileMap((prev) => ({ ...prev, ...map }));
     }
   };
 
   const addAssignedUser = (p: Profile) => {
     if (!editing) return;
-    if (assignedIds.includes(p.id)) return;
-    setEditing({ ...editing, assigned_user_ids: [...assignedIds, p.id] });
-    setProfileMap((prev) => ({ ...prev, [p.id]: p.email }));
+    if (assignedIds.includes(p.user_id)) return;
+    setEditing({ ...editing, assigned_user_ids: [...assignedIds, p.user_id] });
+    setProfileMap((prev) => ({ ...prev, [p.user_id]: p.email }));
     setUserSearch("");
     setUserResults([]);
   };
@@ -243,14 +243,17 @@ export default function BankInfoPage() {
                 />
               </div>
               {searching && <p className="text-xs text-muted-foreground">Searching…</p>}
+              {!searching && userSearch.trim() && userResults.length === 0 && (
+                <p className="text-xs text-muted-foreground">No matching users found.</p>
+              )}
               {userResults.length > 0 && (
                 <div className="rounded-md border divide-y">
                   {userResults.map((p) => (
                     <button
-                      key={p.id}
+                      key={p.user_id}
                       type="button"
                       onClick={() => addAssignedUser(p)}
-                      disabled={assignedIds.includes(p.id)}
+                      disabled={assignedIds.includes(p.user_id)}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       {p.email}
