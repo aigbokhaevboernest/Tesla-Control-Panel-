@@ -4,6 +4,7 @@ const supabase: any = supabaseTyped;
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserCheck, UserX, ArrowDownToLine, ArrowUpFromLine, DollarSign } from "lucide-react";
 import { StatusBadge } from "../components/StatusBadge";
+import { formatMoney } from "@/lib/currency";
 
 type Stats = {
   total: number; active: number; blocked: number;
@@ -20,25 +21,45 @@ export default function Dashboard() {
   useEffect(() => {
     document.title = "Admin · Dashboard";
     const load = async () => {
-      const [{ count: total }, { count: active }, { count: blocked }, deposits, payouts, approved, rd, rp] = await Promise.all([
+      const [
+        { count: total },
+        { count: active },
+        { count: blocked },
+        pendingDeposits,
+        pendingPayouts,
+        approvedDeposits,
+        rd,
+        rp,
+      ] = await Promise.all([
         supabase.from("profiles").select("*", { count: "exact", head: true }),
         supabase.from("profiles").select("*", { count: "exact", head: true }).eq("status", "active"),
         supabase.from("profiles").select("*", { count: "exact", head: true }).eq("status", "blocked"),
-        supabase.from("deposits").select("amount", { count: "exact" }).eq("status", "pending"),
-        supabase.from("payouts").select("amount", { count: "exact" }).eq("status", "pending"),
-        supabase.from("deposits").select("amount").eq("status", "approved"),
-        supabase.from("deposits").select("*, profiles(full_name, email)").order("created_at", { ascending: false }).limit(5),
-        supabase.from("payouts").select("*, profiles(full_name, email)").order("created_at", { ascending: false }).limit(5),
+        supabase.from("transactions").select("amount", { count: "exact" }).eq("type", "deposit").eq("status", "pending"),
+        supabase.from("transactions").select("amount", { count: "exact" }).in("type", ["withdrawal", "payout"]).eq("status", "pending"),
+        supabase.from("transactions").select("amount").eq("type", "deposit").eq("status", "approved"),
+        supabase.from("transactions").select("*").eq("type", "deposit").order("created_at", { ascending: false }).limit(5),
+        supabase.from("transactions").select("*").in("type", ["withdrawal", "payout"]).order("created_at", { ascending: false }).limit(5),
       ]);
+
       const sum = (rows: any[] | null) => (rows ?? []).reduce((s, r) => s + Number(r.amount || 0), 0);
+
+      // Attach profile info to recent rows
+      const ids = Array.from(new Set([...(rd.data ?? []), ...(rp.data ?? [])].map((t: any) => t.user_id).filter(Boolean)));
+      let pmap: Record<string, any> = {};
+      if (ids.length) {
+        const { data: ps } = await supabase.from("profiles").select("user_id, full_name, email, currency").in("user_id", ids);
+        (ps ?? []).forEach((p: any) => { pmap[p.user_id] = p; });
+      }
+      const enrich = (rows: any[]) => rows.map((r) => ({ ...r, profile: pmap[r.user_id] || null }));
+
       setStats({
         total: total ?? 0, active: active ?? 0, blocked: blocked ?? 0,
-        pendingDepositsCount: deposits.count ?? 0, pendingDepositsSum: sum(deposits.data),
-        pendingPayoutsCount: payouts.count ?? 0, pendingPayoutsSum: sum(payouts.data),
-        approvedDepositsSum: sum(approved.data),
+        pendingDepositsCount: pendingDeposits.count ?? 0, pendingDepositsSum: sum(pendingDeposits.data),
+        pendingPayoutsCount: pendingPayouts.count ?? 0, pendingPayoutsSum: sum(pendingPayouts.data),
+        approvedDepositsSum: sum(approvedDeposits.data),
       });
-      setRecentDeposits(rd.data ?? []);
-      setRecentPayouts(rp.data ?? []);
+      setRecentDeposits(enrich(rd.data ?? []));
+      setRecentPayouts(enrich(rp.data ?? []));
     };
     load();
   }, []);
@@ -47,9 +68,9 @@ export default function Dashboard() {
     { label: "Total Users", value: stats?.total ?? "—", icon: Users, color: "text-sky-500", bg: "bg-sky-500/10" },
     { label: "Active", value: stats?.active ?? "—", icon: UserCheck, color: "text-emerald-500", bg: "bg-emerald-500/10" },
     { label: "Blocked", value: stats?.blocked ?? "—", icon: UserX, color: "text-rose-500", bg: "bg-rose-500/10" },
-    { label: "Pending Deposits", value: stats?.pendingDepositsCount ?? 0, sub: `$${(stats?.pendingDepositsSum ?? 0).toLocaleString()}`, icon: ArrowDownToLine, color: "text-amber-500", bg: "bg-amber-500/10" },
-    { label: "Pending Payouts", value: stats?.pendingPayoutsCount ?? 0, sub: `$${(stats?.pendingPayoutsSum ?? 0).toLocaleString()}`, icon: ArrowUpFromLine, color: "text-violet-500", bg: "bg-violet-500/10" },
-    { label: "Approved Deposits", value: `$${(stats?.approvedDepositsSum ?? 0).toLocaleString()}`, icon: DollarSign, color: "text-teal-500", bg: "bg-teal-500/10" },
+    { label: "Pending Deposits", value: stats?.pendingDepositsCount ?? 0, sub: `${(stats?.pendingDepositsSum ?? 0).toLocaleString()}`, icon: ArrowDownToLine, color: "text-amber-500", bg: "bg-amber-500/10" },
+    { label: "Pending Payouts", value: stats?.pendingPayoutsCount ?? 0, sub: `${(stats?.pendingPayoutsSum ?? 0).toLocaleString()}`, icon: ArrowUpFromLine, color: "text-violet-500", bg: "bg-violet-500/10" },
+    { label: "Approved Deposits", value: `${(stats?.approvedDepositsSum ?? 0).toLocaleString()}`, icon: DollarSign, color: "text-teal-500", bg: "bg-teal-500/10" },
   ];
 
   return (
@@ -86,11 +107,11 @@ export default function Dashboard() {
             {recentDeposits.map((d) => (
               <div key={d.id} className="flex items-center justify-between gap-2 border-b border-border py-2 last:border-0">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{d.profiles?.full_name || d.profiles?.email || "—"}</p>
+                  <p className="truncate text-sm font-medium">{d.profile?.full_name || d.profile?.email || "—"}</p>
                   <p className="truncate text-xs text-muted-foreground">{d.method || "—"} · {new Date(d.created_at).toLocaleDateString()}</p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="text-sm font-semibold">${Number(d.amount).toLocaleString()}</span>
+                  <span className="text-sm font-semibold">{formatMoney(d.amount, d.profile?.currency)}</span>
                   <StatusBadge status={d.status} />
                 </div>
               </div>
@@ -104,11 +125,11 @@ export default function Dashboard() {
             {recentPayouts.map((d) => (
               <div key={d.id} className="flex items-center justify-between gap-2 border-b border-border py-2 last:border-0">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{d.profiles?.full_name || d.profiles?.email || "—"}</p>
+                  <p className="truncate text-sm font-medium">{d.profile?.full_name || d.profile?.email || "—"}</p>
                   <p className="truncate text-xs text-muted-foreground">{d.method || "—"} · {new Date(d.created_at).toLocaleDateString()}</p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="text-sm font-semibold">${Number(d.amount).toLocaleString()}</span>
+                  <span className="text-sm font-semibold">{formatMoney(d.amount, d.profile?.currency)}</span>
                   <StatusBadge status={d.status} />
                 </div>
               </div>
