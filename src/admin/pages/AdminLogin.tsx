@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState(""); // email OR username
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -21,6 +21,21 @@ export default function AdminLogin() {
       .maybeSingle();
     if (error) throw error;
     return data?.role === "admin";
+  };
+
+  // Resolve a username to its email via the get_email_for_username RPC.
+  // Falls back to treating the input as an email if it looks like one.
+  const resolveEmail = async (value: string) => {
+    if (value.includes("@")) return value;
+
+    const { data, error } = await supabase.rpc("get_email_for_username", {
+      uname: value,
+    });
+
+    if (error || !data) {
+      throw new Error("Account not found");
+    }
+    return data as string;
   };
 
   useEffect(() => {
@@ -41,6 +56,14 @@ export default function AdminLogin() {
     e.preventDefault();
     setLoading(true);
     try {
+      let email: string;
+      try {
+        email = await resolveEmail(identifier.trim());
+      } catch {
+        toast.error("Invalid username or email");
+        return;
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error || !data.user) {
         toast.error(error?.message ?? "Sign in failed");
@@ -68,16 +91,16 @@ export default function AdminLogin() {
 
         <form onSubmit={handleSubmit} className="space-y-4 rounded-md border border-[#E2E2E2] bg-white p-6">
           <div className="space-y-1.5">
-            <Label htmlFor="email" className="text-xs text-[#767676]">
-              Email
+            <Label htmlFor="identifier" className="text-xs text-[#767676]">
+              Username or email
             </Label>
             <Input
-              id="email"
-              type="email"
+              id="identifier"
+              type="text"
               required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="username"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               className="border-[#E2E2E2] focus-visible:border-[#C81E3A] focus-visible:ring-[#C81E3A]/20"
             />
           </div>
