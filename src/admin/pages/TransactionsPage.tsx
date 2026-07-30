@@ -77,23 +77,36 @@ export default function TransactionsPage() {
   }, [rows, status, type]);
 
   const review = async (tx: Tx, newStatus: string) => {
-    // ✅ Fix 1 — use id not user_id to update transaction
-    const { error } = await supabase
+    // Atomic guard: this update only matches (and only returns a row) if the
+    // transaction is still "pending" at the moment this runs. If someone
+    // already approved/rejected it — including from WithdrawalsPage — this
+    // returns null and we stop before touching any balance.
+    const { data: updatedTx, error } = await supabase
       .from("transactions")
       .update({ status: newStatus })
-      .eq("id", tx.id);
+      .eq("id", tx.id)
+      .eq("status", "pending")
+      .select("id")
+      .maybeSingle();
+
     if (error) return toast.error(error.message);
+    if (!updatedTx) {
+      toast.error("This transaction was already processed elsewhere.");
+      load();
+      return;
+    }
 
     if (newStatus === "approved") {
-      // ✅ Fix 2 — use user_id not id to fetch profile
-      const { data: p } = await supabase
+      // Fresh read, not the value cached in this page's state.
+      const { data: p, error: profileErr } = await supabase
         .from("profiles")
         .select("total_balance, deposit")
         .eq("user_id", tx.user_id)
         .maybeSingle();
 
-      if (p) {
-        // ✅ Fix 3 — use amount_usd not amount
+      if (profileErr || !p) {
+        toast.error("Approved, but couldn't load profile to update balance. Contact support.");
+      } else {
         const amt = Number(tx.amount_usd);
         if (tx.type === "deposit") {
           await supabase
@@ -102,14 +115,23 @@ export default function TransactionsPage() {
               total_balance: Number((p as any).total_balance || 0) + amt,
               deposit: Number((p as any).deposit || 0) + amt,
             })
-            // ✅ Fix 4 — use user_id not id
             .eq("user_id", tx.user_id);
         } else if (tx.type === "withdrawal") {
+          const current = Number((p as any).total_balance || 0);
+          const next = current - amt;
+
+          if (next < 0) {
+            // Don't silently clamp to 0 — roll the approval back so it can
+            // be re-reviewed instead of hiding a shortfall.
+            await supabase.from("transactions").update({ status: "pending" }).eq("id", tx.id);
+            toast.error(`Insufficient balance to approve (current: ${current}, requested: ${amt}).`);
+            load();
+            return;
+          }
+
           await supabase
             .from("profiles")
-            .update({
-              total_balance: Math.max(0, Number((p as any).total_balance || 0) - amt),
-            })
+            .update({ total_balance: next })
             .eq("user_id", tx.user_id);
         }
       }
