@@ -34,11 +34,29 @@ export function BalanceModal({
     const amt = Number(amount);
     if (!amt || amt <= 0) return toast.error("Enter a valid amount");
 
-    const current = Number(user[wallet] || 0);
-    const next = type === "credit" ? current + amt : current - amt;
-    if (next < 0) return toast.error("Insufficient balance for debit");
-
     setBusy(true);
+
+    // Re-read the wallet value fresh right before writing — `user` here is
+    // whatever was loaded when this modal's parent list last fetched, which
+    // can be stale by the time an admin actually clicks submit.
+    const { data: freshProfile, error: readError } = await supabase
+      .from("profiles")
+      .select("total_balance, profit, deposit")
+      .eq("user_id", user.user_id)
+      .maybeSingle();
+
+    if (readError || !freshProfile) {
+      setBusy(false);
+      return toast.error(readError?.message ?? "Couldn't load current balance");
+    }
+
+    const current = Number((freshProfile as any)[wallet] || 0);
+    const next = type === "credit" ? current + amt : current - amt;
+    if (next < 0) {
+      setBusy(false);
+      return toast.error("Insufficient balance for debit");
+    }
+
     const patch: Record<string, number> = {};
     patch[wallet] = next;
     const { error } = await supabase
