@@ -49,19 +49,55 @@ export default function WithdrawalsPage({ mode }: { mode: "pending" | "log" }) {
   }, [mode]);
 
   const review = async (d: Row, newStatus: string) => {
-    const { error } = await supabase
+    // Atomic guard: only succeeds if this row is still "pending" right now.
+    // This is what stops the same withdrawal from being approved twice —
+    // whether from a double-click here, or because it's also open in
+    // TransactionsPage. If 0 rows come back, someone already processed it.
+    const { data: updatedTx, error } = await supabase
       .from("transactions")
       .update({ status: newStatus })
-      .eq("id", d.id);
+      .eq("id", d.id)
+      .eq("status", "pending")
+      .select("id")
+      .maybeSingle();
+
     if (error) return toast.error(error.message);
+    if (!updatedTx) {
+      toast.error("This withdrawal was already processed elsewhere.");
+      load();
+      return;
+    }
 
     if (newStatus === "approved") {
-      const current = Number(d.profile?.total_balance || 0);
-      const amt = Number(d.amount_usd);
-      await supabase
+      // Always re-read the balance fresh right before deducting — never
+      // trust the value that was loaded into the page earlier.
+      const { data: freshProfile, error: profileErr } = await supabase
         .from("profiles")
-        .update({ total_balance: Math.max(0, current - amt) } as any)
-        .eq("user_id", d.user_id);
+        .select("total_balance")
+        .eq("user_id", d.user_id)
+        .maybeSingle();
+
+      if (profileErr) {
+        toast.error(`Approved, but couldn't read balance to deduct: ${profileErr.message}. Contact support.`);
+      } else {
+        const current = Number(freshProfile?.total_balance || 0);
+        const amt = Number(d.amount_usd);
+        const next = current - amt;
+
+        if (next < 0) {
+          // Roll the status back rather than silently clamping to 0 and
+          // losing track of a shortfall.
+          await supabase.from("transactions").update({ status: "pending" }).eq("id", d.id);
+          toast.error(`Insufficient balance to approve (current: ${current}, requested: ${amt}).`);
+          load();
+          return;
+        }
+
+        await supabase
+          .from("profiles")
+          .update({ total_balance: next } as any)
+          .eq("user_id", d.user_id);
+      }
 
       await notifyEmail({
         send: sendEmail,
@@ -69,7 +105,7 @@ export default function WithdrawalsPage({ mode }: { mode: "pending" | "log" }) {
         email: d.profile?.email,
         intent: "payout_approved",
         subject: "Your withdrawal has been approved",
-        body: `Your withdrawal of ${formatMoney(amt, d.profile?.currency)} has been approved and is being processed.`,
+        body: `Your withdrawal of ${formatMoney(Number(d.amount_usd), d.profile?.currency)} has been approved and is being processed.`,
       });
     } else if (newStatus === "rejected") {
       await notifyEmail({
