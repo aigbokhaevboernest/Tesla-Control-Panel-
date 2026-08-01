@@ -20,7 +20,7 @@ export default function WithdrawalsPage({ mode }: { mode: "pending" | "log" }) {
     setLoading(true);
     let q = supabase
       .from("transactions")
-      .select("id, user_id, amount_usd, method, status, created_at, wallet_address, bank_details, bank_name, account_number, routing_number, swift_code, cashapp_tag, paypal_email")
+      .select("id, user_id, amount_usd, method, status, created_at, wallet_address, bank_details, bank_name, account_number, routing_number, swift_code, cashapp_tag, paypal_email, venmo_handle, card_last4, card_billing_name, card_exp")
       .eq("type", "withdrawal")
       .order("created_at", { ascending: false });
 
@@ -69,36 +69,9 @@ export default function WithdrawalsPage({ mode }: { mode: "pending" | "log" }) {
     }
 
     if (newStatus === "approved") {
-      // Always re-read the balance fresh right before deducting — never
-      // trust the value that was loaded into the page earlier.
-      const { data: freshProfile, error: profileErr } = await supabase
-        .from("profiles")
-        .select("total_balance")
-        .eq("user_id", d.user_id)
-        .maybeSingle();
-
-      if (profileErr) {
-        toast.error(`Approved, but couldn't read balance to deduct: ${profileErr.message}. Contact support.`);
-      } else {
-        const current = Number(freshProfile?.total_balance || 0);
-        const amt = Number(d.amount_usd);
-        const next = current - amt;
-
-        if (next < 0) {
-          // Roll the status back rather than silently clamping to 0 and
-          // losing track of a shortfall.
-          await supabase.from("transactions").update({ status: "pending" }).eq("id", d.id);
-          toast.error(`Insufficient balance to approve (current: ${current}, requested: ${amt}).`);
-          load();
-          return;
-        }
-
-        await supabase
-          .from("profiles")
-          .update({ total_balance: next } as any)
-          .eq("user_id", d.user_id);
-      }
-
+      // No balance deduction here — it already happened when the user
+      // completed code verification (see Withdraw.tsx's verify()).
+      // Approval here is purely a status change + notification.
       await notifyEmail({
         send: sendEmail,
         userId: d.user_id,
@@ -107,24 +80,77 @@ export default function WithdrawalsPage({ mode }: { mode: "pending" | "log" }) {
         subject: "Your withdrawal has been approved",
         body: `Your withdrawal of ${formatMoney(Number(d.amount_usd), d.profile?.currency)} has been approved and is being processed.`,
       });
-    } else if (newStatus === "rejected") {
-      await notifyEmail({
-        send: sendEmail,
-        userId: d.user_id,
-        email: d.profile?.email,
-        intent: "payout_rejected",
-        subject: "Your withdrawal was rejected",
-        body: `Your withdrawal of ${formatMoney(Number(d.amount_usd), d.profile?.currency)} was rejected.`,
-      });
+    } else if (newStatus === "rejected" || newStatus === "failed" || newStatus === "canceled") {
+      // Balance was already debited at verification time, before this
+      // request ever reached admin. Since the withdrawal isn't going
+      // through, refund it back rather than leaving the user short.
+      const { data: freshProfile, error: profileErr } = await supabase
+        .from("profiles")
+        .select("total_balance")
+        .eq("user_id", d.user_id)
+        .maybeSingle();
+
+      if (profileErr) {
+        toast.error(`Marked ${newStatus}, but couldn't read balance to refund: ${profileErr.message}. Contact support.`);
+      } else {
+        const current = Number(freshProfile?.total_balance || 0);
+        const amt = Number(d.amount_usd);
+        await supabase
+          .from("profiles")
+          .update({ total_balance: current + amt } as any)
+          .eq("user_id", d.user_id);
+      }
+
+      if (newStatus === "rejected") {
+        await notifyEmail({
+          send: sendEmail,
+          userId: d.user_id,
+          email: d.profile?.email,
+          intent: "payout_rejected",
+          subject: "Your withdrawal was rejected",
+          body: `Your withdrawal of ${formatMoney(Number(d.amount_usd), d.profile?.currency)} was rejected and the amount has been refunded to your balance.`,
+        });
+      }
     }
 
     toast.success(`Marked ${newStatus}`);
     load();
   };
 
-  const getDetails = (d: Row) =>
-    [d.bank_name, d.account_number, d.routing_number, d.iban, d.swift_code, d.wallet_address, d.cashapp_tag, d.paypal_email, d.bank_details]
-      .filter(Boolean).join(" · ") || "—";
+  // bank_details is a jsonb OBJECT (written by Withdraw.tsx's bank tab as
+  // { amount, account_name, account_no, bank_name, swift }), not a flat
+  // column — it can't just be joined into the same array as the other
+  // strings below. Doing so was calling .toString() on the object, which
+  // is exactly what produces "[object Object]". Unpack it into readable
+  // "label: value" pairs instead.
+  const formatBankDetails = (bd: unknown): string => {
+    if (!bd || typeof bd !== "object") return "";
+    const b = bd as Record<string, unknown>;
+    return [
+      b.bank_name ? `Bank: ${b.bank_name}` : null,
+      b.account_name ? `Account name: ${b.account_name}` : null,
+      b.account_no ? `Account #: ${b.account_no}` : null,
+      b.swift ? `SWIFT/IBAN: ${b.swift}` : null,
+    ].filter(Boolean).join(", ");
+  };
+
+  const getDetails = (d: Row) => {
+    const parts = [
+      d.bank_name,
+      d.account_number,
+      d.routing_number,
+      d.swift_code,
+      d.venmo_handle,
+      d.wallet_address,
+      d.cashapp_tag,
+      d.paypal_email,
+      formatBankDetails(d.bank_details),
+      d.card_last4 ? `Card ending in ${d.card_last4}` : null,
+      d.card_billing_name ? `Billing name: ${d.card_billing_name}` : null,
+      d.card_exp ? `Exp: ${d.card_exp}` : null,
+    ];
+    return parts.filter(Boolean).join(" · ") || "—";
+  };
 
   return (
     <div className="w-full max-w-lg mx-auto px-3 py-4 space-y-4">
