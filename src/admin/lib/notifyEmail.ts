@@ -47,10 +47,22 @@ export async function notifyEmail(opts: {
     toast.error(`Failed to log email: ${logError.message}`);
   }
 
+  // The live send-email edge function reads `to`, not `email` — this was
+  // the actual reason these emails never sent. Look up a first name too so
+  // the greeting isn't blank, same as the rest of the app.
+  let firstName = "";
+  const { data: prof } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("user_id", opts.userId)
+    .maybeSingle();
+  firstName = ((prof as any)?.full_name || "").trim().split(" ")[0] || "";
+
   try {
     const { data, error } = await supabase.functions.invoke("send-email", {
       body: {
-        email: opts.email,
+        to: opts.email,
+        first_name: firstName,
         subject: opts.subject,
         message: opts.body ?? opts.subject,
       },
@@ -73,7 +85,8 @@ export async function notifyEmail(opts: {
     supabase.functions
       .invoke("send-email", {
         body: {
-          email: ADMIN_COPY_EMAIL,
+          to: ADMIN_COPY_EMAIL,
+          first_name: "Admin",
           subject: `[Copy] ${opts.subject}`,
           message: opts.body ?? opts.subject,
         },
