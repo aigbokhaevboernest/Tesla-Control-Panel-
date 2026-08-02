@@ -8,6 +8,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { toast } from "sonner";
 import { notifyEmail } from "../lib/notifyEmail";
 import { formatMoney } from "@/lib/currency";
+import { cn } from "@/lib/utils";
 
 type Row = any;
 
@@ -49,21 +50,22 @@ export default function WithdrawalsPage({ mode }: { mode: "pending" | "log" }) {
   }, [mode]);
 
   const review = async (d: Row, newStatus: string) => {
-    // Atomic guard: only succeeds if this row is still "pending" right now.
-    // This is what stops the same withdrawal from being approved twice —
-    // whether from a double-click here, or because it's also open in
-    // TransactionsPage. If 0 rows come back, someone already processed it.
+    // Atomic guard: only succeeds if this row is still in the status we
+    // expect right now. This is what stops the same withdrawal from being
+    // processed twice — whether from a double-click here, or because it's
+    // also open in another admin tab. If 0 rows come back, someone already
+    // changed it since this page loaded.
     const { data: updatedTx, error } = await supabase
       .from("transactions")
       .update({ status: newStatus })
       .eq("id", d.id)
-      .eq("status", "pending")
+      .eq("status", d.status)
       .select("id")
       .maybeSingle();
 
     if (error) return toast.error(error.message);
     if (!updatedTx) {
-      toast.error("This withdrawal was already processed elsewhere.");
+      toast.error("This withdrawal was already changed elsewhere. Refreshing…");
       load();
       return;
     }
@@ -84,6 +86,11 @@ export default function WithdrawalsPage({ mode }: { mode: "pending" | "log" }) {
       // Balance was already debited at verification time, before this
       // request ever reached admin. Since the withdrawal isn't going
       // through, refund it back rather than leaving the user short.
+      //
+      // Note: if this row is being moved OUT of "approved" (e.g. admin
+      // approved by mistake, then corrects it to rejected), this refund
+      // is still correct — the money was debited once at verification and
+      // never re-debited at approval, so one refund here fully reverses it.
       const { data: freshProfile, error: profileErr } = await supabase
         .from("profiles")
         .select("total_balance")
@@ -113,8 +120,16 @@ export default function WithdrawalsPage({ mode }: { mode: "pending" | "log" }) {
       }
     }
 
+    // In-place update instead of refetching. Refetching in "pending" mode
+    // re-runs the .eq("status", "pending") filter, which is exactly what
+    // was making a row vanish the instant its status changed — the row
+    // (and its action buttons) would drop out of the query results before
+    // anyone could look at it again or change it further. Updating the
+    // already-loaded row's status locally keeps it visible and actionable,
+    // regardless of mode, matching how Transactions.tsx never removes a
+    // row from view just because its status changed.
+    setRows((prev) => prev.map((r) => (r.id === d.id ? { ...r, status: newStatus } : r)));
     toast.success(`Marked ${newStatus}`);
-    load();
   };
 
   // bank_details is a jsonb OBJECT (written by Withdraw.tsx's bank tab as
@@ -159,67 +174,105 @@ export default function WithdrawalsPage({ mode }: { mode: "pending" | "log" }) {
         <p className="text-sm text-muted-foreground">{rows.length} entries</p>
       </div>
 
-      {mode === "pending" && (
-        <label className="flex items-center gap-2 text-sm">
-          <Checkbox checked={sendEmail} onCheckedChange={(v) => setSendEmail(v === true)} />
-          Send email on approve / reject
-        </label>
-      )}
+      <label className="flex items-center gap-2 text-sm">
+        <Checkbox checked={sendEmail} onCheckedChange={(v) => setSendEmail(v === true)} />
+        Send email on status change
+      </label>
 
       {loading && <p className="text-center text-muted-foreground py-10">Loading…</p>}
       {!loading && rows.length === 0 && (
-        <p className="text-center text-muted-foreground py-10">No pending requests</p>
+        <p className="text-center text-muted-foreground py-10">No {mode === "pending" ? "pending requests" : "entries"}</p>
       )}
 
       {!loading && rows.length > 0 && (
         <div className="flex flex-col gap-3">
-          {rows.map((d) => (
-            <Card key={d.id} className="w-full shadow-sm">
-              <CardContent className="p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xl font-bold">{formatMoney(Number(d.amount_usd), d.profile?.currency)}</span>
-                  <StatusBadge status={d.status} />
-                </div>
+          {rows.map((d) => {
+            const isApproved = d.status === "approved";
+            const isRejected = d.status === "rejected";
+            const isFailed = d.status === "failed";
+            const isCanceled = d.status === "canceled";
 
-                <div className="space-y-1.5 text-sm">
-                  <div className="flex justify-between gap-3">
-                    <span className="text-muted-foreground">Name</span>
-                    <span className="font-medium text-right break-all">{d.profile?.full_name || d.profile?.email || "—"}</span>
+            return (
+              <Card key={d.id} className="w-full shadow-sm">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl font-bold">{formatMoney(Number(d.amount_usd), d.profile?.currency)}</span>
+                    <StatusBadge status={d.status} />
                   </div>
-                  <div className="flex justify-between gap-3">
-                    <span className="text-muted-foreground">Email</span>
-                    <span className="font-medium text-right break-all">{d.profile?.email || "—"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Method</span>
-                    <span className="capitalize font-medium">{d.method || "—"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Date</span>
-                    <span className="font-medium">{new Date(d.created_at).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Time</span>
-                    <span className="font-medium">{new Date(d.created_at).toLocaleTimeString()}</span>
-                  </div>
-                </div>
 
-                <div className="rounded-md bg-muted px-3 py-2 text-xs break-all">
-                  <span className="text-muted-foreground">Details: </span>
-                  {getDetails(d)}
-                </div>
+                  <div className="space-y-1.5 text-sm">
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted-foreground">Name</span>
+                      <span className="font-medium text-right break-all">{d.profile?.full_name || d.profile?.email || "—"}</span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted-foreground">Email</span>
+                      <span className="font-medium text-right break-all">{d.profile?.email || "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Method</span>
+                      <span className="capitalize font-medium">{d.method || "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Date</span>
+                      <span className="font-medium">{new Date(d.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Time</span>
+                      <span className="font-medium">{new Date(d.created_at).toLocaleTimeString()}</span>
+                    </div>
+                  </div>
 
-                {mode === "pending" && (
+                  <div className="rounded-md bg-muted px-3 py-2 text-xs break-all">
+                    <span className="text-muted-foreground">Details: </span>
+                    {getDetails(d)}
+                  </div>
+
+                  {/* Buttons are always rendered — not hidden by mode — so a
+                      row can keep being changed after its first action,
+                      same as Transactions.tsx. Each disables only when the
+                      row is already in that exact status. */}
                   <div className="grid grid-cols-2 gap-2 pt-1">
-                    <Button size="sm" className="w-full" onClick={() => review(d, "approved")}>Approve</Button>
-                    <Button size="sm" variant="destructive" className="w-full" onClick={() => review(d, "rejected")}>Reject</Button>
-                    <Button size="sm" variant="outline" className="w-full" onClick={() => review(d, "failed")}>Failed</Button>
-                    <Button size="sm" variant="outline" className="w-full" onClick={() => review(d, "canceled")}>Cancel</Button>
+                    <Button
+                      size="sm"
+                      disabled={isApproved}
+                      className={cn("w-full", isApproved && "opacity-40 cursor-not-allowed")}
+                      onClick={() => review(d, "approved")}
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={isRejected}
+                      className={cn("w-full", isRejected && "opacity-40 cursor-not-allowed")}
+                      onClick={() => review(d, "rejected")}
+                    >
+                      Reject
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isFailed}
+                      className={cn("w-full", isFailed && "opacity-40 cursor-not-allowed")}
+                      onClick={() => review(d, "failed")}
+                    >
+                      Failed
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isCanceled}
+                      className={cn("w-full", isCanceled && "opacity-40 cursor-not-allowed")}
+                      onClick={() => review(d, "canceled")}
+                    >
+                      Cancel
+                    </Button>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
