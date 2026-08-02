@@ -27,7 +27,7 @@ serve(async (req) => {
       <html>
         <body style="margin:0; padding:0; font-family: Arial, sans-serif; background-color:#f9f9f9;">
           <div style="background-color:#0A1428; padding:24px; text-align:center;">
-            <span style="color:#ffffff; font-size:18px; font-weight:bold;">Admin Portal</span>
+            <span style="color:#ffffff; font-size:18px; font-weight:bold;">Tesla Equity</span>
           </div>
           <div style="background-color:#ffffff; padding:32px; max-width:600px; margin:0 auto;">
             <p style="font-size:16px; color:#111827;">${first_name ? `Hello ${first_name},` : ""}</p>
@@ -36,7 +36,7 @@ serve(async (req) => {
             </p>
           </div>
           <div style="background-color:#0A1428; padding:20px; text-align:center; font-size:13px; color:#6B7280;">
-            This is an automated notification from the Admin Portal.
+            This is an automated notification from the Tesla Equity .
           </div>
         </body>
       </html>
