@@ -42,9 +42,11 @@ serve(async (req) => {
       </html>
     `;
 
-    // NOTE: "onboarding@resend.dev" is Resend's shared sandbox sender.
-    // Replace with a verified domain sender (e.g. "Admin Portal <notifications@yourdomain.com>")
-    // once a domain is verified in Resend for reliable inbox delivery.
+    // Verified domain sender — replaces Resend's sandbox address
+    // (onboarding@resend.dev), which could only deliver to the Resend
+    // account's own signup email. This address requires the domain
+    // teslagrowthequity.com to be verified in the Resend dashboard
+    // (Domains → the DNS records provided there) or sends will fail.
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -52,7 +54,7 @@ serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "Admin Portal <onboarding@resend.dev>",
+        from: "Admin Portal <support@teslagrowthequity.com>",
         to: email,
         subject,
         html,
