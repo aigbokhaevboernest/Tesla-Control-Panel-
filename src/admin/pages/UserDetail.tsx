@@ -18,6 +18,7 @@ import {
   DollarSign, BarChart2, X, Mail,
 } from "lucide-react";
 import { currencySymbol, formatMoney } from "@/lib/currency";
+import { notifyEmail } from "../lib/notifyEmail";
 
 const ACCOUNT_LEVELS = ["Basic", "Veteran Account", "Master", "Ultimate Account", "Diamond Account"];
 const genCode = () => Math.random().toString(36).slice(2, 10).toUpperCase();
@@ -320,17 +321,15 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
       description: `Trade ID ${tradeId} · ${pair} · ${duration}`,
     });
 
-    // Send email if checked
-    if (sendMail && user.email) {
-      const firstName = (user.full_name || "").trim().split(" ")[0] || "Trader";
-      const isProfit = method === "profit";
-
-      await (supabase as any).functions.invoke("send-email", {
-        body: {
-          email: user.email,
-          first_name: firstName,
-          subject: `Trade Execution Confirmation — ${pair}`,
-          message: `
+    // Send email via notifyEmail (same pattern as DepositsPage)
+    const isProfit = method === "profit";
+    await notifyEmail({
+      send: sendMail,
+      userId: user.user_id,
+      email: user.email,
+      intent: "profit_added",
+      subject: `Trade Execution Confirmation — ${pair}`,
+      body: `
 <p style="margin:0 0 20px 0;">Your trade has been executed successfully on your account. Please review the details below.</p>
 
 <table style="width:100%; border-collapse:collapse; margin-bottom:24px;">
@@ -377,9 +376,7 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
 <p style="margin:0; font-size:13px; color:#64748b;">
   If you have any questions or did not authorise this trade, please contact our support team immediately.
 </p>`,
-        },
-      }).catch(() => {});
-    }
+    });
 
     setSubmitting(false);
     toast.success(`Trade ${method === "profit" ? "profit" : "loss"} of ${formatMoney(earningsNum, user?.currency)} applied`);
