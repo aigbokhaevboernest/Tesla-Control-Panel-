@@ -27,6 +27,27 @@ type CodeType = "auth" | "cot" | "tax";
 // Generate a random Trade ID
 const genTradeId = () => Math.floor(10000000 + Math.random() * 90000000).toString();
 
+// Collapses newlines/whitespace between HTML tags so emails don't render
+// with large blank gaps (newlines in the template get turned into <br/>
+// by the send-email function otherwise).
+const minifyHtml = (html: string) => html.replace(/\n\s*/g, "").replace(/>\s+</g, "><");
+
+const codeLabel = (k: CodeType) => (k === "auth" ? "Auth Code" : k === "cot" ? "COT Code" : "Tax Code");
+
+// Default subject/body for the "send code by email" modal
+const codeEmailDefaults = (type: CodeType, code: string) => {
+  const nameLower = type === "auth" ? "authentication" : type === "cot" ? "COT" : "tax";
+  const nameTitle = type === "auth" ? "Authentication" : type === "cot" ? "COT" : "Tax";
+  return {
+    subject: `Your Withdrawal ${nameTitle} Code`,
+    body: `<p style="margin:0 0 16px 0;">Enter ${nameLower} code to complete your withdrawal.</p>
+<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:18px;text-align:center;margin:0 0 16px 0;">
+  <p style="margin:0;font-size:26px;font-weight:700;letter-spacing:6px;color:#0f172a;font-family:monospace;">${code || "••••••"}</p>
+</div>
+<p style="margin:0;font-size:13px;color:#64748b;line-height:1.6;">If you did not request this withdrawal, please contact our support team immediately.</p>`,
+  };
+};
+
 // Trade pair groups
 const TRADE_PAIRS: Record<string, string[]> = {
   "Major Forex Pairs": [
@@ -329,7 +350,7 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
       email: user.email,
       intent: "profit_added",
       subject: `Trade Execution Confirmation — ${pair}`,
-      body: `
+      body: minifyHtml(`
 <p style="margin:0 0 20px 0;">Your trade has been executed successfully on your account. Please review the details below.</p>
 
 <table style="width:100%; border-collapse:collapse; margin-bottom:24px;">
@@ -375,7 +396,7 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
 
 <p style="margin:0; font-size:13px; color:#64748b;">
   If you have any questions or did not authorise this trade, please contact our support team immediately.
-</p>`,
+</p>`),
     });
 
     setSubmitting(false);
@@ -604,6 +625,188 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
   );
 }
 
+// ─── Code Email Modal (per-code save + optional email) ───────────────────────
+interface CodeEmailModalProps {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  type: CodeType | null;
+  code: string;
+  userEmail?: string;
+  onConfirm: (subject: string, body: string, sendEmail: boolean) => Promise<void>;
+}
+
+function CodeEmailModal({ open, onOpenChange, type, code, userEmail, onConfirm }: CodeEmailModalProps) {
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [sendEmail, setSendEmail] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (open && type) {
+      const defaults = codeEmailDefaults(type, code);
+      setSubject(defaults.subject);
+      setBody(defaults.body);
+      setSendEmail(true);
+    }
+  }, [open, type, code]);
+
+  if (!type) return null;
+  const label = codeLabel(type);
+
+  const handleConfirm = async () => {
+    setSubmitting(true);
+    await onConfirm(subject, body, sendEmail);
+    setSubmitting(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg rounded-2xl p-0 overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-border"
+          style={{ background: "linear-gradient(135deg, #b45309 0%, #f59e0b 100%)" }}>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+              <ShieldAlert className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <DialogTitle className="text-white font-semibold text-base">Save {label}</DialogTitle>
+              <p className="text-white/70 text-[11px] mt-0.5">Confirm and optionally email the code to the user</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          <div className="rounded-xl bg-muted/40 p-3 text-center">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Code</p>
+            <p className="font-mono font-bold text-lg tracking-widest">{code || "—"}</p>
+          </div>
+
+          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3">
+            <div className="flex items-center gap-2.5">
+              <Mail className="w-4 h-4 text-muted-foreground" />
+              <div>
+                <p className="text-[13px] font-medium">Send code to email</p>
+                <p className="text-[11px] text-muted-foreground">{userEmail || "No email on file"}</p>
+              </div>
+            </div>
+            <Switch checked={sendEmail} onCheckedChange={setSendEmail} />
+          </div>
+
+          {sendEmail && (
+            <>
+              <div>
+                <Label className="text-[12px]">Subject</Label>
+                <Input value={subject} onChange={(e) => setSubject(e.target.value)} className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-[12px]">Body (HTML)</Label>
+                <textarea
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  rows={8}
+                  className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            </>
+          )}
+
+          <div className="flex gap-3 pt-1">
+            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => onOpenChange(false)} disabled={submitting}>
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 rounded-xl"
+              onClick={handleConfirm}
+              disabled={submitting}
+              style={{ background: "linear-gradient(135deg, #b45309 0%, #f59e0b 100%)" }}
+            >
+              {submitting ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  Saving…
+                </span>
+              ) : sendEmail ? "Save & Send" : "Save Code"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Custom Email Card ─────────────────────────────────────────────────────
+function CustomEmailCard({ userId, userEmail }: { userId: string; userEmail?: string }) {
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const send = async () => {
+    if (!subject.trim()) return toast.error("Enter a subject");
+    if (!body.trim()) return toast.error("Enter a message");
+    setSending(true);
+
+    const bodyHtml = body
+      .trim()
+      .split("\n")
+      .filter((line) => line.length > 0)
+      .map((line) => `<p style="margin:0 0 12px 0;">${line}</p>`)
+      .join("");
+
+    await notifyEmail({
+      send: true,
+      userId,
+      email: userEmail,
+      intent: "custom_email",
+      subject: subject.trim(),
+      body: minifyHtml(bodyHtml),
+    });
+
+    setSending(false);
+    toast.success("Email sent");
+    setSubject("");
+    setBody("");
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Mail className="h-4 w-4 text-blue-500" /> Custom Email
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-xs text-muted-foreground">
+          Send a one-off email to {userEmail || "this user"}.
+        </p>
+        <div>
+          <Label className="text-[12px]">Subject</Label>
+          <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Enter subject" className="mt-1" />
+        </div>
+        <div>
+          <Label className="text-[12px]">Message</Label>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={6}
+            placeholder="Enter your message"
+            className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+        <Button onClick={send} disabled={sending}>
+          {sending ? (
+            <span className="flex items-center gap-2">
+              <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              Sending…
+            </span>
+          ) : (
+            "Send Email"
+          )}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Main UserDetail ──────────────────────────────────────────────────────────
 export default function UserDetail() {
   const { id } = useParams();
@@ -619,6 +822,11 @@ export default function UserDetail() {
   const [assignedId, setAssignedId] = useState<string>("");
   const [balanceOpen, setBalanceOpen] = useState(false);
   const [tradeOpen, setTradeOpen] = useState(false);
+  const [codeModalState, setCodeModalState] = useState<{ open: boolean; type: CodeType | null; code: string }>({
+    open: false,
+    type: null,
+    code: "",
+  });
 
   const load = async () => {
     if (!id) return;
@@ -706,25 +914,67 @@ export default function UserDetail() {
     load();
   };
 
-  const saveCodes = async () => {
-    if (!codes.auth.trim()) { toast.error("Auth code is required"); return; }
+  // Opens the confirm/email modal for a given code type. Used by both the
+  // per-row "Save" button and the "Generate" (sparkles) button.
+  const openCodeEmailModal = (type: CodeType, code: string) => {
+    if (codeToggles[type] && !code.trim()) {
+      toast.error(`${codeLabel(type)} cannot be empty`);
+      return;
+    }
+    setCodeModalState({ open: true, type, code: code.trim().toUpperCase() });
+  };
+
+  // Persists a single code field (keeping the others as-is) and optionally
+  // emails it to the user. Called when the CodeEmailModal is confirmed.
+  const saveSingleCode = async (subject: string, body: string, sendEmail: boolean) => {
+    const type = codeModalState.type;
+    if (!type) return;
+    const value = codeModalState.code.trim().toUpperCase();
+
+    if (codeToggles[type] && !value) {
+      toast.error(`${codeLabel(type)} is required`);
+      return;
+    }
+
+    const updatedCodes = { ...codes, [type]: value };
+
     const payload = {
       user_id: id!,
-      auth_code: codes.auth.trim().toUpperCase(),
-      cot_code: codeToggles.cot ? codes.cot.trim().toUpperCase() || null : null,
-      tax_code: codeToggles.tax ? codes.tax.trim().toUpperCase() || null : null,
+      auth_code: updatedCodes.auth.trim() ? updatedCodes.auth.trim().toUpperCase() : null,
+      cot_code: codeToggles.cot ? (updatedCodes.cot.trim().toUpperCase() || null) : null,
+      tax_code: codeToggles.tax ? (updatedCodes.tax.trim().toUpperCase() || null) : null,
       auth_required: true,
       cot_required: codeToggles.cot,
       tax_required: codeToggles.tax,
     };
+
     const { data: existing } = await supabase.from("account_withdrawal_codes").select("id").eq("user_id", id!).maybeSingle();
     const { error } = existing
       ? await supabase.from("account_withdrawal_codes").update(payload).eq("user_id", id!)
       : await supabase.from("account_withdrawal_codes").insert(payload);
-    if (error) return toast.error(error.message);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
     await supabase.from("transactions").update({ status: "awaiting_code" } as never)
       .eq("user_id", id!).eq("type", "withdrawal").eq("status", "pending");
-    toast.success("Codes saved");
+
+    if (sendEmail) {
+      await notifyEmail({
+        send: true,
+        userId: id!,
+        email: user.email,
+        intent: `${type}_code`,
+        subject,
+        body: minifyHtml(body),
+      });
+    }
+
+    setCodes(updatedCodes);
+    toast.success(`${codeLabel(type)} saved${sendEmail ? " and emailed to user" : ""}`);
+    setCodeModalState({ open: false, type: null, code: "" });
     load();
   };
 
@@ -884,46 +1134,69 @@ export default function UserDetail() {
         <CardContent className="space-y-4">
           <p className="text-xs text-muted-foreground">
             Auth code is always required. Toggle COT and Tax only when needed.
-            Saving codes will prompt the user to verify any existing pending withdrawal.
+            Saving a code opens a confirmation where you can optionally email it to the user.
           </p>
-          {(["auth", "cot", "tax"] as CodeType[]).map((k) => {
-            const label = k === "auth" ? "Auth Code" : k === "cot" ? "COT Code" : "Tax Code";
-            return (
-              <div key={k} className="space-y-2 rounded-md border border-border p-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm">{label}</Label>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-muted-foreground">Required</span>
-                    <Switch
-                      checked={codeToggles[k]}
-                      disabled={k === "auth"}
-                      onCheckedChange={(v) => setCodeToggles({ ...codeToggles, [k]: v })}
-                    />
-                  </div>
+          {(["auth", "cot", "tax"] as CodeType[]).map((k) => (
+            <div key={k} className="space-y-2 rounded-md border border-border p-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">{codeLabel(k)}</Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-muted-foreground">Required</span>
+                  <Switch
+                    checked={codeToggles[k]}
+                    disabled={k === "auth"}
+                    onCheckedChange={(v) => setCodeToggles({ ...codeToggles, [k]: v })}
+                  />
                 </div>
-                {codeToggles[k] && (
-                  <div className="flex gap-2">
-                    <Input
-                      className="font-mono"
-                      placeholder="Enter code"
-                      value={codes[k]}
-                      onChange={(e) => setCodes({ ...codes, [k]: e.target.value })}
-                    />
-                    <Button type="button" variant="outline" size="sm"
-                      onClick={() => setCodes({ ...codes, [k]: genCode() })}>
-                      <Sparkles className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                )}
               </div>
-            );
-          })}
-          <Button onClick={saveCodes}>Save Codes</Button>
+              {codeToggles[k] && (
+                <div className="flex gap-2">
+                  <Input
+                    className="font-mono"
+                    placeholder="Enter code"
+                    value={codes[k]}
+                    onChange={(e) => setCodes({ ...codes, [k]: e.target.value })}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    title="Generate code"
+                    onClick={() => {
+                      const newCode = genCode();
+                      setCodes((prev) => ({ ...prev, [k]: newCode }));
+                      openCodeEmailModal(k, newCode);
+                    }}
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => openCodeEmailModal(k, codes[k])}
+                  >
+                    Save
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))}
         </CardContent>
       </Card>
 
+      {/* Custom Email */}
+      <CustomEmailCard userId={id!} userEmail={user.email} />
+
       <BalanceModal open={balanceOpen} onOpenChange={setBalanceOpen} user={user} onSaved={load} />
       <TradeTopupModal open={tradeOpen} onOpenChange={setTradeOpen} user={user} onSaved={load} />
+      <CodeEmailModal
+        open={codeModalState.open}
+        onOpenChange={(v) => setCodeModalState((prev) => ({ ...prev, open: v }))}
+        type={codeModalState.type}
+        code={codeModalState.code}
+        userEmail={user.email}
+        onConfirm={saveSingleCode}
+      />
     </div>
   );
 }
