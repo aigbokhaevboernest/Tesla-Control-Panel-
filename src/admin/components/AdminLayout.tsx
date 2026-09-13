@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard, Users, Clock, IdCard, UserPlus, Briefcase, CreditCard,
   KeyRound, ArrowDownToLine, Receipt, ArrowUpFromLine, FileText, BarChart3, LogOut,
-  Landmark, ArrowLeftRight, Menu, ShieldCheck,
+  Landmark, ArrowLeftRight, Menu, ShieldCheck, Rocket,
 } from "lucide-react";
 
 type Item = { title: string; url: string; icon: React.ComponentType<{ className?: string }>; color: string };
