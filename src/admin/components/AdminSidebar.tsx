@@ -39,6 +39,7 @@ const SECTIONS: { label: string; items: { title: string; url: string; icon: Reac
   { label: "Bank Info", items: [{ title: "Withdrawal Banks", url: "/admin/bank-info", icon: Landmark }] },
   { label: "Account Codes", items: [{ title: "Auth / COT / Tax", url: "/admin/account-codes", icon: ShieldAlert }] },
   { label: "Manage Plan", items: [{ title: "Plan List", url: "/admin/plans", icon: BarChart3 }] },
+  { label: "Cybercab", items: [{ title: "Cybercab", url: "/admin/cybercab", icon: Rocket }] },
 ];
 
 export function AdminSidebar() {
