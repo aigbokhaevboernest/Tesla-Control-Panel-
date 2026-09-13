@@ -15,6 +15,7 @@ import PlansPage from "../pages/PlansPage";
 import BankInfoPage from "../pages/BankInfoPage";
 import AccountCodesPage from "../pages/AccountCodesPage";
 import TransactionsPage from "../pages/TransactionsPage";
+import CybercabAdminPage from "../pages/CybercabAdminPage";
 
 export default function AdminRoutes() {
   return (
@@ -36,6 +37,7 @@ export default function AdminRoutes() {
         <Route path="payouts/requests" element={<PayoutsPage mode="pending" />} />
         <Route path="payouts/log" element={<PayoutsPage mode="log" />} />
         <Route path="bank-info" element={<BankInfoPage />} />
+        <Route path="cybercab" element={<CybercabAdminPage />} />
         <Route path="account-codes" element={<AccountCodesPage />} />
         <Route path="plans" element={<PlansPage />} />
       </Route>
