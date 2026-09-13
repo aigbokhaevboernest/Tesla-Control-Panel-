@@ -12,7 +12,9 @@ export type EmailIntent =
   | "profit_added"
   | "withdrawal_made"
   | "kyc_approved"
-  | "kyc_rejected";
+  | "kyc_rejected"
+  | "cybercab_investment_approved"
+  | "cybercab_investment_rejected";
 
 // No per-admin routing yet — every outbound user notification is also copied here.
 const ADMIN_COPY_EMAIL = "jameshilterson@gmail.com";
