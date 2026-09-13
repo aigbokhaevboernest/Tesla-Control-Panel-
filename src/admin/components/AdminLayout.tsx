@@ -40,7 +40,7 @@ const SECTIONS: Section[] = [
   ]},
   { label: "Configuration", items: [
     { title: "Bank Info", url: "/admin/bank-info", icon: Landmark, color: "text-blue-500" },
-    { title: "Investment Plans", url: "/admin/plans", icon: BarChart3, color: "text-cyan-500" },
+    { title: "Cybercab Control", url: "/admin/cybercab", icon: Rocket, color: "text-cyan-500" },
   ]},
 ];
 
