@@ -39,7 +39,24 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
         .in("user_id", ids as any);
       (ps ?? []).forEach((p: any) => { profiles[p.user_id] = p; });
     }
-    setRows(txs.map((t) => ({ ...t, profile: profiles[t.user_id] || null })));
+
+    // Pull any Cybercab investment linked to these transactions, so admin
+    // can see (and later sync) the Cybercab status alongside the deposit.
+    const txIds = txs.map((t) => t.id);
+    let cybercabByTxId: Record<string, any> = {};
+    if (txIds.length) {
+      const { data: cybs } = await supabase
+        .from("cybercab_investments")
+        .select("id, transaction_id, status")
+        .in("transaction_id", txIds as any);
+      (cybs ?? []).forEach((c: any) => { cybercabByTxId[c.transaction_id] = c; });
+    }
+
+    setRows(txs.map((t) => ({
+      ...t,
+      profile: profiles[t.user_id] || null,
+      cybercab: cybercabByTxId[t.id] || null,
+    })));
     setLoading(false);
   };
 
@@ -71,6 +88,24 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
         subject: "Your deposit has been approved",
         body: `Your deposit of ${formatMoney(amt, d.profile?.currency)} has been approved and credited to your account.`,
       });
+
+      // If this deposit is linked to a Cybercab investment, activate it too
+      // and send a separate Cybercab-specific confirmation.
+      if (d.cybercab) {
+        await supabase
+          .from("cybercab_investments")
+          .update({ status: "active", updated_at: new Date().toISOString() })
+          .eq("id", d.cybercab.id);
+
+        await notifyEmail({
+          send: sendEmail,
+          userId: d.user_id,
+          email: d.profile?.email,
+          intent: "cybercab_investment_approved",
+          subject: "Your Cybercab investment is active",
+          body: `Your Cybercab investment of ${formatMoney(amt, d.profile?.currency)} has been approved and is now active.`,
+        });
+      }
     } else if (newStatus === "rejected") {
       await notifyEmail({
         send: sendEmail,
@@ -80,6 +115,22 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
         subject: "Your deposit was rejected",
         body: `Your deposit of ${formatMoney(Number(d.amount_usd), d.profile?.currency)} was rejected.`,
       });
+
+      if (d.cybercab) {
+        await supabase
+          .from("cybercab_investments")
+          .update({ status: "failed", updated_at: new Date().toISOString() })
+          .eq("id", d.cybercab.id);
+
+        await notifyEmail({
+          send: sendEmail,
+          userId: d.user_id,
+          email: d.profile?.email,
+          intent: "cybercab_investment_rejected",
+          subject: "Update on your Cybercab investment",
+          body: `Your Cybercab investment could not be approved. Please contact support.`,
+        });
+      }
     }
 
     toast.success(`Marked ${newStatus}`);
@@ -122,6 +173,13 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
                   <span className="text-xl font-bold">{formatMoney(Number(d.amount_usd), d.profile?.currency)}</span>
                   <StatusBadge status={d.status} />
                 </div>
+
+                {d.cybercab && (
+                  <div className="rounded-md bg-primary/10 border border-primary/20 px-3 py-2 text-xs flex items-center justify-between">
+                    <span className="font-medium text-primary">Cybercab investment</span>
+                    <span className="capitalize text-muted-foreground">{d.cybercab.status}</span>
+                  </div>
+                )}
 
                 <div className="space-y-1.5 text-sm">
                   <div className="flex justify-between gap-3">
