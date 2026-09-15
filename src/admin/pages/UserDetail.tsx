@@ -877,30 +877,70 @@ export default function UserDetail() {
     currency: selectedCurrency,
   }, "Profile updated");
 
-  const toggleSuspend = () => updateProfile({
-    status: user.status === "suspended" ? "active" : "suspended"
-  }, "Status changed");
+  const toggleSuspend = async () => {
+  const next = user.status === "suspended" ? "active" : "suspended";
+  const { error } = await supabase.from("profiles").update({ status: next }).eq("user_id", id!);
+  if (error) return toast.error(error.message);
 
-  const toggleBlock = () => updateProfile({
-    status: user.status === "blocked" ? "active" : "blocked"
-  }, "Status changed");
+  if (next === "suspended") {
+    await notifyEmail({
+      send: true,
+      userId: user.user_id,
+      email: user.email,
+      intent: "account_suspended",
+      subject: "Your account has been suspended",
+      body: `
+Your account has been suspended. Most actions are blocked.
+You can still access your dashboard overview, complete KYC, and make deposits if needed.
+If you have questions, contact support@teslagrowthequity.com.
+`,
+    });
+  }
 
-  const del = async () => {
-    if (!confirm(`Delete ${user.email}? Permanent.`)) return;
-    const adminAuth = (supabase as any).auth?.admin;
-    if (adminAuth?.deleteUser) {
-      try { await adminAuth.deleteUser(id); } catch { /* ignore */ }
-    }
-    const { error: delErr } = await supabase.from("profiles").delete().eq("user_id", id!);
-    if (delErr) {
-      const { error: blockErr } = await supabase.from("profiles").update({ status: "blocked" }).eq("user_id", id!);
-      if (blockErr) return toast.error(blockErr.message);
-      toast.success("User blocked (deletion not permitted)");
-    } else {
-      toast.success("Deleted");
-    }
-    navigate("/admin/users");
-  };
+  toast.success(next === "suspended" ? "Account suspended" : "Account reactivated");
+  load();
+};
+
+const toggleBlock = async () => {
+  const next = user.status === "blocked" ? "active" : "blocked";
+  const { error } = await supabase.from("profiles").update({ status: next }).eq("user_id", id!);
+  if (error) return toast.error(error.message);
+
+  if (next === "blocked") {
+    await notifyEmail({
+      send: true,
+      userId: user.user_id,
+      email: user.email,
+      intent: "account_blocked",
+      subject: "Your account has been blocked",
+      body: `
+Your account has been blocked and access is restricted.
+If you believe this is a mistake, contact support@teslagrowthequity.com.
+`,
+    });
+  }
+
+  toast.success(next === "blocked" ? "Account blocked" : "Account unblocked");
+  load();
+};
+
+const del = async () => {
+  if (!confirm(`Delete ${user.email}? Permanent.`)) return;
+  const adminAuth = (supabase as any).auth?.admin;
+  if (adminAuth?.deleteUser) {
+    try { await adminAuth.deleteUser(id); } catch { /* ignore */ }
+  }
+  const { error: delErr } = await supabase.from("profiles").delete().eq("user_id", id!);
+  if (delErr) {
+    const { error: blockErr } = await supabase.from("profiles").update({ status: "blocked" }).eq("user_id", id!);
+    if (blockErr) return toast.error(blockErr.message);
+    toast.success("User blocked (deletion not permitted)");
+  } else {
+    toast.success("Deleted");
+  }
+  navigate("/admin/users");
+};
+
 
   const saveAccountLevel = () => updateProfile({ account_level: accountLevel }, "Account level updated");
 
