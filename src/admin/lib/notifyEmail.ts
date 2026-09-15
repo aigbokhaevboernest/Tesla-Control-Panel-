@@ -14,10 +14,12 @@ export type EmailIntent =
   | "kyc_approved"
   | "kyc_rejected"
   | "cybercab_investment_approved"
-  | "cybercab_investment_rejected";
+  | "cybercab_investment_rejected"
+  | "account_suspended"
+  | "account_blocked";
 
 // No per-admin routing yet — every outbound user notification is also copied here.
-const ADMIN_COPY_EMAIL = "jameshilterson@gmail.com";
+const ADMIN_COPY_EMAIL = "support@teslagrowthequity.com";
 
 export async function notifyEmail(opts: {
   send: boolean;
