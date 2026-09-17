@@ -16,7 +16,11 @@ export type EmailIntent =
   | "cybercab_investment_approved"
   | "cybercab_investment_rejected"
   | "account_suspended"
-  | "account_blocked";
+  | "account_blocked"
+  | "account_reactivated"
+  | "account_unblocked"
+  | "expert_assigned"
+  | "account_level_updated";
 
 // No per-admin routing yet — every outbound user notification is also copied here.
 const ADMIN_COPY_EMAIL = "support@teslagrowthequity.com";
