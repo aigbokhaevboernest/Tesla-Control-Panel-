@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { StatusBadge } from "../components/StatusBadge";
 import { BalanceModal } from "../components/BalanceModal";
 import { toast } from "sonner";
@@ -24,17 +25,12 @@ const ACCOUNT_LEVELS = ["Basic", "Veteran Account", "Master", "Ultimate Account"
 const genCode = () => Math.random().toString(36).slice(2, 10).toUpperCase();
 type CodeType = "auth" | "cot" | "tax";
 
-// Generate a random Trade ID
 const genTradeId = () => Math.floor(10000000 + Math.random() * 90000000).toString();
 
-// Collapses newlines/whitespace between HTML tags so emails don't render
-// with large blank gaps (newlines in the template get turned into <br/>
-// by the send-email function otherwise).
 const minifyHtml = (html: string) => html.replace(/\n\s*/g, "").replace(/>\s+</g, "><");
 
 const codeLabel = (k: CodeType) => (k === "auth" ? "Auth Code" : k === "cot" ? "COT Code" : "Tax Code");
 
-// Default subject/body for the "send code by email" modal
 const codeEmailDefaults = (type: CodeType, code: string) => {
   const nameLower = type === "auth" ? "authentication" : type === "cot" ? "COT" : "tax";
   const nameTitle = type === "auth" ? "Authentication" : type === "cot" ? "COT" : "Tax";
@@ -48,7 +44,6 @@ const codeEmailDefaults = (type: CodeType, code: string) => {
   };
 };
 
-// Trade pair groups
 const TRADE_PAIRS: Record<string, string[]> = {
   "Major Forex Pairs": [
     "EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF",
@@ -91,164 +86,134 @@ const TIME_DURATIONS = [
   "8 hours", "12 hours", "1 day", "3 days", "1 week",
 ];
 
-// Full ISO 4217 currency list
 const ALL_CURRENCIES = [
-  { code: "AED", name: "UAE Dirham" },
-  { code: "AFN", name: "Afghan Afghani" },
-  { code: "ALL", name: "Albanian Lek" },
-  { code: "AMD", name: "Armenian Dram" },
-  { code: "ANG", name: "Netherlands Antillean Guilder" },
-  { code: "AOA", name: "Angolan Kwanza" },
-  { code: "ARS", name: "Argentine Peso" },
-  { code: "AUD", name: "Australian Dollar" },
-  { code: "AWG", name: "Aruban Florin" },
-  { code: "AZN", name: "Azerbaijani Manat" },
-  { code: "BAM", name: "Bosnia-Herzegovina Convertible Mark" },
-  { code: "BBD", name: "Barbadian Dollar" },
-  { code: "BDT", name: "Bangladeshi Taka" },
-  { code: "BGN", name: "Bulgarian Lev" },
-  { code: "BHD", name: "Bahraini Dinar" },
-  { code: "BIF", name: "Burundian Franc" },
-  { code: "BMD", name: "Bermudan Dollar" },
-  { code: "BND", name: "Brunei Dollar" },
-  { code: "BOB", name: "Bolivian Boliviano" },
-  { code: "BRL", name: "Brazilian Real" },
-  { code: "BSD", name: "Bahamian Dollar" },
-  { code: "BTN", name: "Bhutanese Ngultrum" },
-  { code: "BWP", name: "Botswanan Pula" },
-  { code: "BYN", name: "Belarusian Ruble" },
-  { code: "BZD", name: "Belize Dollar" },
-  { code: "CAD", name: "Canadian Dollar" },
-  { code: "CDF", name: "Congolese Franc" },
-  { code: "CHF", name: "Swiss Franc" },
-  { code: "CLP", name: "Chilean Peso" },
-  { code: "CNY", name: "Chinese Yuan" },
-  { code: "COP", name: "Colombian Peso" },
-  { code: "CRC", name: "Costa Rican Colón" },
-  { code: "CUP", name: "Cuban Peso" },
-  { code: "CVE", name: "Cape Verdean Escudo" },
-  { code: "CZK", name: "Czech Koruna" },
-  { code: "DJF", name: "Djiboutian Franc" },
-  { code: "DKK", name: "Danish Krone" },
-  { code: "DOP", name: "Dominican Peso" },
-  { code: "DZD", name: "Algerian Dinar" },
-  { code: "EGP", name: "Egyptian Pound" },
-  { code: "ERN", name: "Eritrean Nakfa" },
-  { code: "ETB", name: "Ethiopian Birr" },
-  { code: "EUR", name: "Euro" },
-  { code: "FJD", name: "Fijian Dollar" },
-  { code: "FKP", name: "Falkland Islands Pound" },
-  { code: "GBP", name: "British Pound" },
-  { code: "GEL", name: "Georgian Lari" },
-  { code: "GHS", name: "Ghanaian Cedi" },
-  { code: "GIP", name: "Gibraltar Pound" },
-  { code: "GMD", name: "Gambian Dalasi" },
-  { code: "GNF", name: "Guinean Franc" },
-  { code: "GTQ", name: "Guatemalan Quetzal" },
-  { code: "GYD", name: "Guyanaese Dollar" },
-  { code: "HKD", name: "Hong Kong Dollar" },
-  { code: "HNL", name: "Honduran Lempira" },
-  { code: "HRK", name: "Croatian Kuna" },
-  { code: "HTG", name: "Haitian Gourde" },
-  { code: "HUF", name: "Hungarian Forint" },
-  { code: "IDR", name: "Indonesian Rupiah" },
-  { code: "ILS", name: "Israeli New Shekel" },
-  { code: "INR", name: "Indian Rupee" },
-  { code: "IQD", name: "Iraqi Dinar" },
-  { code: "IRR", name: "Iranian Rial" },
-  { code: "ISK", name: "Icelandic Króna" },
-  { code: "JMD", name: "Jamaican Dollar" },
-  { code: "JOD", name: "Jordanian Dinar" },
-  { code: "JPY", name: "Japanese Yen" },
-  { code: "KES", name: "Kenyan Shilling" },
-  { code: "KGS", name: "Kyrgystani Som" },
-  { code: "KHR", name: "Cambodian Riel" },
-  { code: "KMF", name: "Comorian Franc" },
-  { code: "KPW", name: "North Korean Won" },
-  { code: "KRW", name: "South Korean Won" },
-  { code: "KWD", name: "Kuwaiti Dinar" },
-  { code: "KYD", name: "Cayman Islands Dollar" },
-  { code: "KZT", name: "Kazakhstani Tenge" },
-  { code: "LAK", name: "Laotian Kip" },
-  { code: "LBP", name: "Lebanese Pound" },
-  { code: "LKR", name: "Sri Lankan Rupee" },
-  { code: "LRD", name: "Liberian Dollar" },
-  { code: "LSL", name: "Lesotho Loti" },
-  { code: "LYD", name: "Libyan Dinar" },
-  { code: "MAD", name: "Moroccan Dirham" },
-  { code: "MDL", name: "Moldovan Leu" },
-  { code: "MGA", name: "Malagasy Ariary" },
-  { code: "MKD", name: "Macedonian Denar" },
-  { code: "MMK", name: "Myanmar Kyat" },
-  { code: "MNT", name: "Mongolian Tugrik" },
-  { code: "MOP", name: "Macanese Pataca" },
-  { code: "MRU", name: "Mauritanian Ouguiya" },
-  { code: "MUR", name: "Mauritian Rupee" },
-  { code: "MVR", name: "Maldivian Rufiyaa" },
-  { code: "MWK", name: "Malawian Kwacha" },
-  { code: "MXN", name: "Mexican Peso" },
-  { code: "MYR", name: "Malaysian Ringgit" },
-  { code: "MZN", name: "Mozambican Metical" },
-  { code: "NAD", name: "Namibian Dollar" },
-  { code: "NGN", name: "Nigerian Naira" },
-  { code: "NIO", name: "Nicaraguan Córdoba" },
-  { code: "NOK", name: "Norwegian Krone" },
-  { code: "NPR", name: "Nepalese Rupee" },
-  { code: "NZD", name: "New Zealand Dollar" },
-  { code: "OMR", name: "Omani Rial" },
-  { code: "PAB", name: "Panamanian Balboa" },
-  { code: "PEN", name: "Peruvian Sol" },
-  { code: "PGK", name: "Papua New Guinean Kina" },
-  { code: "PHP", name: "Philippine Peso" },
-  { code: "PKR", name: "Pakistani Rupee" },
-  { code: "PLN", name: "Polish Zloty" },
-  { code: "PYG", name: "Paraguayan Guarani" },
-  { code: "QAR", name: "Qatari Rial" },
-  { code: "RON", name: "Romanian Leu" },
-  { code: "RSD", name: "Serbian Dinar" },
-  { code: "RUB", name: "Russian Ruble" },
-  { code: "RWF", name: "Rwandan Franc" },
-  { code: "SAR", name: "Saudi Riyal" },
-  { code: "SBD", name: "Solomon Islands Dollar" },
-  { code: "SCR", name: "Seychellois Rupee" },
-  { code: "SDG", name: "Sudanese Pound" },
-  { code: "SEK", name: "Swedish Krona" },
-  { code: "SGD", name: "Singapore Dollar" },
-  { code: "SHP", name: "Saint Helena Pound" },
-  { code: "SLL", name: "Sierra Leonean Leone" },
-  { code: "SOS", name: "Somali Shilling" },
-  { code: "SRD", name: "Surinamese Dollar" },
-  { code: "STN", name: "São Tomé & Príncipe Dobra" },
-  { code: "SVC", name: "Salvadoran Colón" },
-  { code: "SYP", name: "Syrian Pound" },
-  { code: "SZL", name: "Swazi Lilangeni" },
-  { code: "THB", name: "Thai Baht" },
-  { code: "TJS", name: "Tajikistani Somoni" },
-  { code: "TMT", name: "Turkmenistani Manat" },
-  { code: "TND", name: "Tunisian Dinar" },
-  { code: "TOP", name: "Tongan Paʻanga" },
-  { code: "TRY", name: "Turkish Lira" },
-  { code: "TTD", name: "Trinidad & Tobago Dollar" },
-  { code: "TWD", name: "New Taiwan Dollar" },
-  { code: "TZS", name: "Tanzanian Shilling" },
-  { code: "UAH", name: "Ukrainian Hryvnia" },
-  { code: "UGX", name: "Ugandan Shilling" },
-  { code: "USD", name: "US Dollar" },
-  { code: "UYU", name: "Uruguayan Peso" },
-  { code: "UZS", name: "Uzbekistani Som" },
-  { code: "VES", name: "Venezuelan Bolívar" },
-  { code: "VND", name: "Vietnamese Dong" },
-  { code: "VUV", name: "Vanuatu Vatu" },
-  { code: "WST", name: "Samoan Tala" },
-  { code: "XAF", name: "Central African CFA Franc" },
-  { code: "XCD", name: "East Caribbean Dollar" },
-  { code: "XOF", name: "West African CFA Franc" },
-  { code: "XPF", name: "CFP Franc" },
-  { code: "YER", name: "Yemeni Rial" },
-  { code: "ZAR", name: "South African Rand" },
-  { code: "ZMW", name: "Zambian Kwacha" },
+  { code: "AED", name: "UAE Dirham" }, { code: "AFN", name: "Afghan Afghani" },
+  { code: "ALL", name: "Albanian Lek" }, { code: "AMD", name: "Armenian Dram" },
+  { code: "ANG", name: "Netherlands Antillean Guilder" }, { code: "AOA", name: "Angolan Kwanza" },
+  { code: "ARS", name: "Argentine Peso" }, { code: "AUD", name: "Australian Dollar" },
+  { code: "AWG", name: "Aruban Florin" }, { code: "AZN", name: "Azerbaijani Manat" },
+  { code: "BAM", name: "Bosnia-Herzegovina Convertible Mark" }, { code: "BBD", name: "Barbadian Dollar" },
+  { code: "BDT", name: "Bangladeshi Taka" }, { code: "BGN", name: "Bulgarian Lev" },
+  { code: "BHD", name: "Bahraini Dinar" }, { code: "BIF", name: "Burundian Franc" },
+  { code: "BMD", name: "Bermudan Dollar" }, { code: "BND", name: "Brunei Dollar" },
+  { code: "BOB", name: "Bolivian Boliviano" }, { code: "BRL", name: "Brazilian Real" },
+  { code: "BSD", name: "Bahamian Dollar" }, { code: "BTN", name: "Bhutanese Ngultrum" },
+  { code: "BWP", name: "Botswanan Pula" }, { code: "BYN", name: "Belarusian Ruble" },
+  { code: "BZD", name: "Belize Dollar" }, { code: "CAD", name: "Canadian Dollar" },
+  { code: "CDF", name: "Congolese Franc" }, { code: "CHF", name: "Swiss Franc" },
+  { code: "CLP", name: "Chilean Peso" }, { code: "CNY", name: "Chinese Yuan" },
+  { code: "COP", name: "Colombian Peso" }, { code: "CRC", name: "Costa Rican Colón" },
+  { code: "CUP", name: "Cuban Peso" }, { code: "CVE", name: "Cape Verdean Escudo" },
+  { code: "CZK", name: "Czech Koruna" }, { code: "DJF", name: "Djiboutian Franc" },
+  { code: "DKK", name: "Danish Krone" }, { code: "DOP", name: "Dominican Peso" },
+  { code: "DZD", name: "Algerian Dinar" }, { code: "EGP", name: "Egyptian Pound" },
+  { code: "ERN", name: "Eritrean Nakfa" }, { code: "ETB", name: "Ethiopian Birr" },
+  { code: "EUR", name: "Euro" }, { code: "FJD", name: "Fijian Dollar" },
+  { code: "FKP", name: "Falkland Islands Pound" }, { code: "GBP", name: "British Pound" },
+  { code: "GEL", name: "Georgian Lari" }, { code: "GHS", name: "Ghanaian Cedi" },
+  { code: "GIP", name: "Gibraltar Pound" }, { code: "GMD", name: "Gambian Dalasi" },
+  { code: "GNF", name: "Guinean Franc" }, { code: "GTQ", name: "Guatemalan Quetzal" },
+  { code: "GYD", name: "Guyanaese Dollar" }, { code: "HKD", name: "Hong Kong Dollar" },
+  { code: "HNL", name: "Honduran Lempira" }, { code: "HRK", name: "Croatian Kuna" },
+  { code: "HTG", name: "Haitian Gourde" }, { code: "HUF", name: "Hungarian Forint" },
+  { code: "IDR", name: "Indonesian Rupiah" }, { code: "ILS", name: "Israeli New Shekel" },
+  { code: "INR", name: "Indian Rupee" }, { code: "IQD", name: "Iraqi Dinar" },
+  { code: "IRR", name: "Iranian Rial" }, { code: "ISK", name: "Icelandic Króna" },
+  { code: "JMD", name: "Jamaican Dollar" }, { code: "JOD", name: "Jordanian Dinar" },
+  { code: "JPY", name: "Japanese Yen" }, { code: "KES", name: "Kenyan Shilling" },
+  { code: "KGS", name: "Kyrgystani Som" }, { code: "KHR", name: "Cambodian Riel" },
+  { code: "KMF", name: "Comorian Franc" }, { code: "KPW", name: "North Korean Won" },
+  { code: "KRW", name: "South Korean Won" }, { code: "KWD", name: "Kuwaiti Dinar" },
+  { code: "KYD", name: "Cayman Islands Dollar" }, { code: "KZT", name: "Kazakhstani Tenge" },
+  { code: "LAK", name: "Laotian Kip" }, { code: "LBP", name: "Lebanese Pound" },
+  { code: "LKR", name: "Sri Lankan Rupee" }, { code: "LRD", name: "Liberian Dollar" },
+  { code: "LSL", name: "Lesotho Loti" }, { code: "LYD", name: "Libyan Dinar" },
+  { code: "MAD", name: "Moroccan Dirham" }, { code: "MDL", name: "Moldovan Leu" },
+  { code: "MGA", name: "Malagasy Ariary" }, { code: "MKD", name: "Macedonian Denar" },
+  { code: "MMK", name: "Myanmar Kyat" }, { code: "MNT", name: "Mongolian Tugrik" },
+  { code: "MOP", name: "Macanese Pataca" }, { code: "MRU", name: "Mauritanian Ouguiya" },
+  { code: "MUR", name: "Mauritian Rupee" }, { code: "MVR", name: "Maldivian Rufiyaa" },
+  { code: "MWK", name: "Malawian Kwacha" }, { code: "MXN", name: "Mexican Peso" },
+  { code: "MYR", name: "Malaysian Ringgit" }, { code: "MZN", name: "Mozambican Metical" },
+  { code: "NAD", name: "Namibian Dollar" }, { code: "NGN", name: "Nigerian Naira" },
+  { code: "NIO", name: "Nicaraguan Córdoba" }, { code: "NOK", name: "Norwegian Krone" },
+  { code: "NPR", name: "Nepalese Rupee" }, { code: "NZD", name: "New Zealand Dollar" },
+  { code: "OMR", name: "Omani Rial" }, { code: "PAB", name: "Panamanian Balboa" },
+  { code: "PEN", name: "Peruvian Sol" }, { code: "PGK", name: "Papua New Guinean Kina" },
+  { code: "PHP", name: "Philippine Peso" }, { code: "PKR", name: "Pakistani Rupee" },
+  { code: "PLN", name: "Polish Zloty" }, { code: "PYG", name: "Paraguayan Guarani" },
+  { code: "QAR", name: "Qatari Rial" }, { code: "RON", name: "Romanian Leu" },
+  { code: "RSD", name: "Serbian Dinar" }, { code: "RUB", name: "Russian Ruble" },
+  { code: "RWF", name: "Rwandan Franc" }, { code: "SAR", name: "Saudi Riyal" },
+  { code: "SBD", name: "Solomon Islands Dollar" }, { code: "SCR", name: "Seychellois Rupee" },
+  { code: "SDG", name: "Sudanese Pound" }, { code: "SEK", name: "Swedish Krona" },
+  { code: "SGD", name: "Singapore Dollar" }, { code: "SHP", name: "Saint Helena Pound" },
+  { code: "SLL", name: "Sierra Leonean Leone" }, { code: "SOS", name: "Somali Shilling" },
+  { code: "SRD", name: "Surinamese Dollar" }, { code: "STN", name: "São Tomé & Príncipe Dobra" },
+  { code: "SVC", name: "Salvadoran Colón" }, { code: "SYP", name: "Syrian Pound" },
+  { code: "SZL", name: "Swazi Lilangeni" }, { code: "THB", name: "Thai Baht" },
+  { code: "TJS", name: "Tajikistani Somoni" }, { code: "TMT", name: "Turkmenistani Manat" },
+  { code: "TND", name: "Tunisian Dinar" }, { code: "TOP", name: "Tongan Paʻanga" },
+  { code: "TRY", name: "Turkish Lira" }, { code: "TTD", name: "Trinidad & Tobago Dollar" },
+  { code: "TWD", name: "New Taiwan Dollar" }, { code: "TZS", name: "Tanzanian Shilling" },
+  { code: "UAH", name: "Ukrainian Hryvnia" }, { code: "UGX", name: "Ugandan Shilling" },
+  { code: "USD", name: "US Dollar" }, { code: "UYU", name: "Uruguayan Peso" },
+  { code: "UZS", name: "Uzbekistani Som" }, { code: "VES", name: "Venezuelan Bolívar" },
+  { code: "VND", name: "Vietnamese Dong" }, { code: "VUV", name: "Vanuatu Vatu" },
+  { code: "WST", name: "Samoan Tala" }, { code: "XAF", name: "Central African CFA Franc" },
+  { code: "XCD", name: "East Caribbean Dollar" }, { code: "XOF", name: "West African CFA Franc" },
+  { code: "XPF", name: "CFP Franc" }, { code: "YER", name: "Yemeni Rial" },
+  { code: "ZAR", name: "South African Rand" }, { code: "ZMW", name: "Zambian Kwacha" },
   { code: "ZWL", name: "Zimbabwean Dollar" },
 ];
+
+// ─── Generic Confirm + Email modal ────────────────────────────────────────
+// Reused for: suspend/unsuspend, block/unblock, assign trader, account level.
+interface ConfirmEmailModalProps {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  title: string;
+  description?: string;
+  sendEmail: boolean;
+  onSendEmailChange: (v: boolean) => void;
+  onConfirm: () => Promise<void>;
+  confirmLabel?: string;
+}
+
+function ConfirmEmailModal({
+  open, onOpenChange, title, description, sendEmail, onSendEmailChange, onConfirm, confirmLabel = "Confirm",
+}: ConfirmEmailModalProps) {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleConfirm = async () => {
+    setSubmitting(true);
+    await onConfirm();
+    setSubmitting(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm rounded-2xl">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        {description && <p className="text-sm text-muted-foreground">{description}</p>}
+        <label className="flex items-center gap-2 text-sm py-2">
+          <Checkbox checked={sendEmail} onCheckedChange={(v) => onSendEmailChange(v === true)} />
+          Send email notification to user
+        </label>
+        <DialogFooter className="flex-row gap-2">
+          <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button className="flex-1" onClick={handleConfirm} disabled={submitting}>
+            {submitting ? "Saving…" : confirmLabel}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 // ─── Trade Topup Modal ────────────────────────────────────────────────────────
 interface TradeTopupModalProps {
@@ -270,13 +235,11 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
   const [sendMail, setSendMail] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Auto-generate times
   const execTime = now.toLocaleString("en-US", {
     month: "short", day: "2-digit", year: "numeric",
     hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
   }).replace(",", "");
 
-  // Parse duration to seconds for closing time calc
   const durationToSeconds = (d: string): number => {
     const map: Record<string, number> = {
       "30 seconds": 30, "1 minute": 60, "2 minutes": 120, "5 minutes": 300,
@@ -312,18 +275,13 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
 
     setSubmitting(true);
 
-    // Calculate new balance + profit
     const profitDelta = method === "profit" ? earningsNum : -earningsNum;
     const newProfit = currentProfit + profitDelta;
     const newBalance = currentBalance + profitDelta;
 
-    // Update profiles
     const { error: profileErr } = await (supabase as any)
       .from("profiles")
-      .update({
-        total_balance: newBalance,
-        profit: newProfit,
-      })
+      .update({ total_balance: newBalance, profit: newProfit })
       .eq("user_id", user.user_id);
 
     if (profileErr) {
@@ -331,7 +289,6 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
       return toast.error(profileErr.message);
     }
 
-    // Insert transaction row so it shows in history
     await (supabase as any).from("transactions").insert({
       user_id: user.user_id,
       type: "profit",
@@ -342,7 +299,6 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
       description: `Trade ID ${tradeId} · ${pair} · ${duration}`,
     });
 
-    // Send email via notifyEmail (same pattern as DepositsPage)
     const isProfit = method === "profit";
     await notifyEmail({
       send: sendMail,
@@ -404,7 +360,6 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
     onOpenChange(false);
     onSaved();
 
-    // Reset form
     setEarnings("");
     setAmount("");
     setDuration("30 seconds");
@@ -414,7 +369,6 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg rounded-2xl p-0 overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-border"
           style={{ background: "linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)" }}>
           <div className="flex items-center gap-3">
@@ -430,7 +384,6 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
         </div>
 
         <div className="px-6 py-5 space-y-5">
-          {/* Balance context */}
           <div className="grid grid-cols-3 gap-2">
             <div className="rounded-xl bg-muted/40 p-3 text-center">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Balance</p>
@@ -442,9 +395,7 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
             </div>
             <div className="rounded-xl bg-muted/40 p-3 text-center">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">After Trade</p>
-              <p className={`font-semibold text-[13px] ${
-                method === "profit" ? "text-emerald-600" : "text-red-500"
-              }`}>
+              <p className={`font-semibold text-[13px] ${method === "profit" ? "text-emerald-600" : "text-red-500"}`}>
                 {earningsNum
                   ? formatMoney(method === "profit" ? currentBalance + earningsNum : currentBalance - earningsNum, user?.currency)
                   : "—"}
@@ -452,21 +403,15 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
             </div>
           </div>
 
-          {/* Pair group + pair */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-[12px]">Pair Group</Label>
               <select
                 value={pairGroup}
-                onChange={(e) => {
-                  setPairGroup(e.target.value);
-                  setPair(TRADE_PAIRS[e.target.value][0]);
-                }}
+                onChange={(e) => { setPairGroup(e.target.value); setPair(TRADE_PAIRS[e.target.value][0]); }}
                 className="mt-1 w-full rounded-lg border border-input bg-[#E5E7EB] text-[#111111] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                {Object.keys(TRADE_PAIRS).map((g) => (
-                  <option key={g} value={g}>{g}</option>
-                ))}
+                {Object.keys(TRADE_PAIRS).map((g) => (<option key={g} value={g}>{g}</option>))}
               </select>
             </div>
             <div>
@@ -476,14 +421,11 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
                 onChange={(e) => setPair(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-input bg-[#E5E7EB] text-[#111111] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                {TRADE_PAIRS[pairGroup].map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
+                {TRADE_PAIRS[pairGroup].map((p) => (<option key={p} value={p}>{p}</option>))}
               </select>
             </div>
           </div>
 
-          {/* Method toggle — Profit / Loss */}
           <div>
             <Label className="text-[12px]">Result</Label>
             <div className="mt-1 grid grid-cols-2 gap-2">
@@ -491,9 +433,7 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
                 type="button"
                 onClick={() => setMethod("profit")}
                 className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 text-[13px] font-semibold transition-all ${
-                  method === "profit"
-                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-600"
-                    : "border-border text-muted-foreground hover:border-emerald-400"
+                  method === "profit" ? "border-emerald-500 bg-emerald-500/10 text-emerald-600" : "border-border text-muted-foreground hover:border-emerald-400"
                 }`}
               >
                 <TrendingUp className="w-4 h-4" /> Profit
@@ -502,9 +442,7 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
                 type="button"
                 onClick={() => setMethod("loss")}
                 className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 text-[13px] font-semibold transition-all ${
-                  method === "loss"
-                    ? "border-red-500 bg-red-500/10 text-red-600"
-                    : "border-border text-muted-foreground hover:border-red-400"
+                  method === "loss" ? "border-red-500 bg-red-500/10 text-red-600" : "border-border text-muted-foreground hover:border-red-400"
                 }`}
               >
                 <TrendingDown className="w-4 h-4" /> Loss
@@ -512,49 +450,25 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
             </div>
           </div>
 
-          {/* Earnings + Amount */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-[12px]">
-                {method === "profit" ? "Profit Earned" : "Loss Amount"}
-              </Label>
+              <Label className="text-[12px]">{method === "profit" ? "Profit Earned" : "Loss Amount"}</Label>
               <div className="relative mt-1">
                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={earnings}
-                  onChange={(e) => setEarnings(e.target.value)}
-                  placeholder="0.00"
-                  className="pl-8"
-                />
+                <Input type="number" min="0" step="0.01" value={earnings} onChange={(e) => setEarnings(e.target.value)} placeholder="0.00" className="pl-8" />
               </div>
-              {method === "loss" && earningsNum > currentBalance && (
-                <p className="text-[10px] text-red-500 mt-1">Exceeds balance</p>
-              )}
+              {method === "loss" && earningsNum > currentBalance && (<p className="text-[10px] text-red-500 mt-1">Exceeds balance</p>)}
             </div>
             <div>
               <Label className="text-[12px]">Amount Placed</Label>
               <div className="relative mt-1">
                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.00"
-                  className="pl-8"
-                />
+                <Input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="pl-8" />
               </div>
-              {amountNum > currentBalance && (
-                <p className="text-[10px] text-red-500 mt-1">Exceeds balance</p>
-              )}
+              {amountNum > currentBalance && (<p className="text-[10px] text-red-500 mt-1">Exceeds balance</p>)}
             </div>
           </div>
 
-          {/* Duration */}
           <div>
             <Label className="text-[12px]">Time Duration</Label>
             <div className="mt-1 grid grid-cols-2 gap-3">
@@ -563,12 +477,9 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
                 onChange={(e) => setDuration(e.target.value)}
                 className="col-span-2 w-full rounded-lg border border-input bg-[#E5E7EB] text-[#111111] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                {TIME_DURATIONS.map((d) => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
+                {TIME_DURATIONS.map((d) => (<option key={d} value={d}>{d}</option>))}
               </select>
             </div>
-            {/* Show auto-generated timestamps */}
             <div className="mt-2 grid grid-cols-2 gap-2">
               <div className="rounded-lg bg-muted/30 px-3 py-2">
                 <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Execution</p>
@@ -581,7 +492,6 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
             </div>
           </div>
 
-          {/* Send mail toggle */}
           <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3">
             <div className="flex items-center gap-2.5">
               <Mail className="w-4 h-4 text-muted-foreground" />
@@ -593,14 +503,8 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
             <Switch checked={sendMail} onCheckedChange={setSendMail} />
           </div>
 
-          {/* Actions */}
           <div className="flex gap-3 pt-1">
-            <Button
-              variant="outline"
-              className="flex-1 rounded-xl"
-              onClick={() => onOpenChange(false)}
-              disabled={submitting}
-            >
+            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => onOpenChange(false)} disabled={submitting}>
               Cancel
             </Button>
             <Button
@@ -614,9 +518,7 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
                   <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                   Applying…
                 </span>
-              ) : (
-                `Apply ${method === "profit" ? "Profit" : "Loss"}`
-              )}
+              ) : (`Apply ${method === "profit" ? "Profit" : "Loss"}`)}
             </Button>
           </div>
         </div>
@@ -625,29 +527,22 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
   );
 }
 
-// ─── Code Email Modal (per-code save + optional email) ───────────────────────
+// ─── Withdrawal Code modal — checkbox, no editable subject/body, primary color ───
 interface CodeEmailModalProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   type: CodeType | null;
   code: string;
   userEmail?: string;
-  onConfirm: (subject: string, body: string, sendEmail: boolean) => Promise<void>;
+  onConfirm: (sendEmail: boolean) => Promise<void>;
 }
 
 function CodeEmailModal({ open, onOpenChange, type, code, userEmail, onConfirm }: CodeEmailModalProps) {
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
   const [sendEmail, setSendEmail] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (open && type) {
-      const defaults = codeEmailDefaults(type, code);
-      setSubject(defaults.subject);
-      setBody(defaults.body);
-      setSendEmail(true);
-    }
+    if (open) setSendEmail(true);
   }, [open, type, code]);
 
   if (!type) return null;
@@ -655,80 +550,37 @@ function CodeEmailModal({ open, onOpenChange, type, code, userEmail, onConfirm }
 
   const handleConfirm = async () => {
     setSubmitting(true);
-    await onConfirm(subject, body, sendEmail);
+    await onConfirm(sendEmail);
     setSubmitting(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg rounded-2xl p-0 overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-border"
-          style={{ background: "linear-gradient(135deg, #b45309 0%, #f59e0b 100%)" }}>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
-              <ShieldAlert className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <DialogTitle className="text-white font-semibold text-base">Save {label}</DialogTitle>
-              <p className="text-white/70 text-[11px] mt-0.5">Confirm and optionally email the code to the user</p>
-            </div>
-          </div>
-        </div>
+      <DialogContent className="max-w-sm rounded-2xl">
+        <DialogHeader>
+          <DialogTitle>Save {label}</DialogTitle>
+        </DialogHeader>
 
-        <div className="px-6 py-5 space-y-4">
+        <div className="space-y-4">
           <div className="rounded-xl bg-muted/40 p-3 text-center">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Code</p>
             <p className="font-mono font-bold text-lg tracking-widest">{code || "—"}</p>
           </div>
 
-          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3">
-            <div className="flex items-center gap-2.5">
-              <Mail className="w-4 h-4 text-muted-foreground" />
-              <div>
-                <p className="text-[13px] font-medium">Send code to email</p>
-                <p className="text-[11px] text-muted-foreground">{userEmail || "No email on file"}</p>
-              </div>
-            </div>
-            <Switch checked={sendEmail} onCheckedChange={setSendEmail} />
-          </div>
-
-          {sendEmail && (
-            <>
-              <div>
-                <Label className="text-[12px]">Subject</Label>
-                <Input value={subject} onChange={(e) => setSubject(e.target.value)} className="mt-1" />
-              </div>
-              <div>
-                <Label className="text-[12px]">Body (HTML)</Label>
-                <textarea
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                  rows={8}
-                  className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-            </>
-          )}
-
-          <div className="flex gap-3 pt-1">
-            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => onOpenChange(false)} disabled={submitting}>
-              Cancel
-            </Button>
-            <Button
-              className="flex-1 rounded-xl"
-              onClick={handleConfirm}
-              disabled={submitting}
-              style={{ background: "linear-gradient(135deg, #b45309 0%, #f59e0b 100%)" }}
-            >
-              {submitting ? (
-                <span className="flex items-center gap-2">
-                  <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  Saving…
-                </span>
-              ) : sendEmail ? "Save & Send" : "Save Code"}
-            </Button>
-          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox checked={sendEmail} onCheckedChange={(v) => setSendEmail(v === true)} />
+            Email this code to {userEmail || "the user"}
+          </label>
         </div>
+
+        <DialogFooter className="flex-row gap-2 pt-2">
+          <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button className="flex-1" onClick={handleConfirm} disabled={submitting}>
+            {submitting ? "Saving…" : sendEmail ? "Save & Send" : "Save Code"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -798,9 +650,7 @@ function CustomEmailCard({ userId, userEmail }: { userId: string; userEmail?: st
               <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
               Sending…
             </span>
-          ) : (
-            "Send Email"
-          )}
+          ) : ("Send Email")}
         </Button>
       </CardContent>
     </Card>
@@ -823,10 +673,12 @@ export default function UserDetail() {
   const [balanceOpen, setBalanceOpen] = useState(false);
   const [tradeOpen, setTradeOpen] = useState(false);
   const [codeModalState, setCodeModalState] = useState<{ open: boolean; type: CodeType | null; code: string }>({
-    open: false,
-    type: null,
-    code: "",
+    open: false, type: null, code: "",
   });
+
+  // Confirm+email modal state for suspend/block/assign trader/account level
+  const [confirmAction, setConfirmAction] = useState<null | "suspend" | "unsuspend" | "block" | "unblock" | "assign_trader" | "account_level">(null);
+  const [confirmSendEmail, setConfirmSendEmail] = useState(true);
 
   const load = async () => {
     if (!id) return;
@@ -877,72 +729,144 @@ export default function UserDetail() {
     currency: selectedCurrency,
   }, "Profile updated");
 
-  const toggleSuspend = async () => {
-  const next = user.status === "suspended" ? "active" : "suspended";
-  const { error } = await supabase.from("profiles").update({ status: next }).eq("user_id", id!);
-  if (error) return toast.error(error.message);
+  // ─── Suspend / Block, confirm + email ───────────────────────────────────
 
-  if (next === "suspended") {
-    await notifyEmail({
-      send: true,
-      userId: user.user_id,
-      email: user.email,
-      intent: "account_suspended",
-      subject: "Your account has been suspended",
-      body: `
+  const requestToggleSuspend = () => {
+    setConfirmAction(user.status === "suspended" ? "unsuspend" : "suspend");
+    setConfirmSendEmail(true);
+  };
+
+  const requestToggleBlock = () => {
+    setConfirmAction(user.status === "blocked" ? "unblock" : "block");
+    setConfirmSendEmail(true);
+  };
+
+  const requestAssignTrader = () => {
+    setConfirmAction("assign_trader");
+    setConfirmSendEmail(true);
+  };
+
+  const requestSaveAccountLevel = () => {
+    setConfirmAction("account_level");
+    setConfirmSendEmail(true);
+  };
+
+  const runConfirmedAction = async () => {
+    if (confirmAction === "suspend" || confirmAction === "unsuspend") {
+      const next = confirmAction === "suspend" ? "suspended" : "active";
+      const { error } = await supabase.from("profiles").update({ status: next }).eq("user_id", id!);
+      if (error) { toast.error(error.message); setConfirmAction(null); return; }
+
+      await notifyEmail({
+        send: confirmSendEmail,
+        userId: user.user_id,
+        email: user.email,
+        intent: next === "suspended" ? "account_suspended" : "account_reactivated",
+        subject: next === "suspended" ? "Your account has been suspended" : "Your account has been reactivated",
+        body: next === "suspended"
+          ? `
 Your account has been suspended. Most actions are blocked.
 You can still access your dashboard overview, complete KYC, and make deposits if needed.
 If you have questions, contact support@teslagrowthequity.com.
+`
+          : `
+Your account has been reactivated. You now have full access again.
+If you have questions, contact support@teslagrowthequity.com.
 `,
-    });
-  }
+      });
 
-  toast.success(next === "suspended" ? "Account suspended" : "Account reactivated");
-  load();
-};
+      toast.success(next === "suspended" ? "Account suspended" : "Account reactivated");
+    }
 
-const toggleBlock = async () => {
-  const next = user.status === "blocked" ? "active" : "blocked";
-  const { error } = await supabase.from("profiles").update({ status: next }).eq("user_id", id!);
-  if (error) return toast.error(error.message);
+    if (confirmAction === "block" || confirmAction === "unblock") {
+      const next = confirmAction === "block" ? "blocked" : "active";
+      const { error } = await supabase.from("profiles").update({ status: next }).eq("user_id", id!);
+      if (error) { toast.error(error.message); setConfirmAction(null); return; }
 
-  if (next === "blocked") {
-    await notifyEmail({
-      send: true,
-      userId: user.user_id,
-      email: user.email,
-      intent: "account_blocked",
-      subject: "Your account has been blocked",
-      body: `
+      await notifyEmail({
+        send: confirmSendEmail,
+        userId: user.user_id,
+        email: user.email,
+        intent: next === "blocked" ? "account_blocked" : "account_unblocked",
+        subject: next === "blocked" ? "Your account has been blocked" : "Your account has been unblocked",
+        body: next === "blocked"
+          ? `
 Your account has been blocked and access is restricted.
 If you believe this is a mistake, contact support@teslagrowthequity.com.
+`
+          : `
+Your account has been unblocked. You now have full access again.
+If you have questions, contact support@teslagrowthequity.com.
 `,
-    });
-  }
+      });
 
-  toast.success(next === "blocked" ? "Account blocked" : "Account unblocked");
-  load();
-};
+      toast.success(next === "blocked" ? "Account blocked" : "Account unblocked");
+    }
 
-const del = async () => {
-  if (!confirm(`Delete ${user.email}? Permanent.`)) return;
-  const adminAuth = (supabase as any).auth?.admin;
-  if (adminAuth?.deleteUser) {
-    try { await adminAuth.deleteUser(id); } catch { /* ignore */ }
-  }
-  const { error: delErr } = await supabase.from("profiles").delete().eq("user_id", id!);
-  if (delErr) {
-    const { error: blockErr } = await supabase.from("profiles").update({ status: "blocked" }).eq("user_id", id!);
-    if (blockErr) return toast.error(blockErr.message);
-    toast.success("User blocked (deletion not permitted)");
-  } else {
-    toast.success("Deleted");
-  }
-  navigate("/admin/users");
-};
+    if (confirmAction === "assign_trader") {
+      const { error } = await supabase.from("profiles").update({ assigned_expert_id: assignedId || null }).eq("user_id", id!);
+      if (error) { toast.error(error.message); setConfirmAction(null); return; }
 
+      const trader = traders.find((t) => t.id === assignedId);
+      await notifyEmail({
+        send: confirmSendEmail,
+        userId: user.user_id,
+        email: user.email,
+        intent: "expert_assigned",
+        subject: "An expert trader has been assigned to your account",
+        body: trader
+          ? `You've been assigned to expert trader <strong>${trader.name}</strong>${trader.specialty ? ` (${trader.specialty})` : ""}. You can view their performance from your dashboard.`
+          : `Your expert trader assignment has been removed.`,
+      });
 
-  const saveAccountLevel = () => updateProfile({ account_level: accountLevel }, "Account level updated");
+      toast.success("Expert assigned");
+    }
+
+    if (confirmAction === "account_level") {
+      const { error } = await supabase.from("profiles").update({ account_level: accountLevel }).eq("user_id", id!);
+      if (error) { toast.error(error.message); setConfirmAction(null); return; }
+
+      await notifyEmail({
+        send: confirmSendEmail,
+        userId: user.user_id,
+        email: user.email,
+        intent: "account_level_updated",
+        subject: "Your account level has been updated",
+        body: `Your account level has been updated to <strong>${accountLevel}</strong>.`,
+      });
+
+      toast.success("Account level updated");
+    }
+
+    setConfirmAction(null);
+    load();
+  };
+
+  const confirmModalMeta: Record<string, { title: string; description?: string }> = {
+    suspend: { title: "Suspend this account?" },
+    unsuspend: { title: "Reactivate this account?" },
+    block: { title: "Block this account?" },
+    unblock: { title: "Unblock this account?" },
+    assign_trader: { title: "Confirm expert trader assignment?" },
+    account_level: { title: `Update account level to ${accountLevel}?` },
+  };
+
+  const del = async () => {
+    if (!confirm(`Delete ${user.email}? Permanent.`)) return;
+    const adminAuth = (supabase as any).auth?.admin;
+    if (adminAuth?.deleteUser) {
+      try { await adminAuth.deleteUser(id); } catch { /* ignore */ }
+    }
+    const { error: delErr } = await supabase.from("profiles").delete().eq("user_id", id!);
+    if (delErr) {
+      const { error: blockErr } = await supabase.from("profiles").update({ status: "blocked" }).eq("user_id", id!);
+      if (blockErr) return toast.error(blockErr.message);
+      toast.success("User blocked (deletion not permitted)");
+    } else {
+      toast.success("Deleted");
+    }
+    navigate("/admin/users");
+  };
 
   const updatePwd = async () => {
     if (pwd !== pwd2) return toast.error("Passwords do not match");
@@ -954,8 +878,6 @@ const del = async () => {
     load();
   };
 
-  // Opens the confirm/email modal for a given code type. Used by both the
-  // per-row "Save" button and the "Generate" (sparkles) button.
   const openCodeEmailModal = (type: CodeType, code: string) => {
     if (codeToggles[type] && !code.trim()) {
       toast.error(`${codeLabel(type)} cannot be empty`);
@@ -964,9 +886,7 @@ const del = async () => {
     setCodeModalState({ open: true, type, code: code.trim().toUpperCase() });
   };
 
-  // Persists a single code field (keeping the others as-is) and optionally
-  // emails it to the user. Called when the CodeEmailModal is confirmed.
-  const saveSingleCode = async (subject: string, body: string, sendEmail: boolean) => {
+  const saveSingleCode = async (sendEmail: boolean) => {
     const type = codeModalState.type;
     if (!type) return;
     const value = codeModalState.code.trim().toUpperCase();
@@ -1002,13 +922,14 @@ const del = async () => {
       .eq("user_id", id!).eq("type", "withdrawal").eq("status", "pending");
 
     if (sendEmail) {
+      const defaults = codeEmailDefaults(type, value);
       await notifyEmail({
         send: true,
         userId: id!,
         email: user.email,
         intent: `${type}_code`,
-        subject,
-        body: minifyHtml(body),
+        subject: defaults.subject,
+        body: minifyHtml(defaults.body),
       });
     }
 
@@ -1016,10 +937,6 @@ const del = async () => {
     toast.success(`${codeLabel(type)} saved${sendEmail ? " and emailed to user" : ""}`);
     setCodeModalState({ open: false, type: null, code: "" });
     load();
-  };
-
-  const assignTrader = async () => {
-    await updateProfile({ assigned_expert_id: assignedId || null }, "Expert assigned");
   };
 
   return (
@@ -1096,12 +1013,12 @@ const del = async () => {
         <CardHeader className="pb-2"><CardTitle className="text-base">Account Status</CardTitle></CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={toggleBlock}>
+            <Button variant="outline" size="sm" onClick={requestToggleBlock}>
               {user.status === "blocked"
                 ? <><CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" />Unblock</>
                 : <><Ban className="mr-2 h-4 w-4 text-rose-500" />Block User</>}
             </Button>
-            <Button variant="outline" size="sm" onClick={toggleSuspend}>
+            <Button variant="outline" size="sm" onClick={requestToggleSuspend}>
               {user.status === "suspended"
                 ? <><CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" />Reactivate</>
                 : <><AlertTriangle className="mr-2 h-4 w-4 text-amber-500" />Suspend</>}
@@ -1132,7 +1049,7 @@ const del = async () => {
               ))}
             </SelectContent>
           </Select>
-          <Button size="sm" onClick={assignTrader}>Save Assignment</Button>
+          <Button size="sm" onClick={requestAssignTrader}>Save Assignment</Button>
         </CardContent>
       </Card>
 
@@ -1146,7 +1063,7 @@ const del = async () => {
               {ACCOUNT_LEVELS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button onClick={saveAccountLevel}>Update Level</Button>
+          <Button onClick={requestSaveAccountLevel}>Update Level</Button>
         </CardContent>
       </Card>
 
@@ -1236,6 +1153,15 @@ const del = async () => {
         code={codeModalState.code}
         userEmail={user.email}
         onConfirm={saveSingleCode}
+      />
+      <ConfirmEmailModal
+        open={!!confirmAction}
+        onOpenChange={(o) => !o && setConfirmAction(null)}
+        title={confirmAction ? confirmModalMeta[confirmAction].title : ""}
+        description={confirmAction ? confirmModalMeta[confirmAction].description : undefined}
+        sendEmail={confirmSendEmail}
+        onSendEmailChange={setConfirmSendEmail}
+        onConfirm={runConfirmedAction}
       />
     </div>
   );
