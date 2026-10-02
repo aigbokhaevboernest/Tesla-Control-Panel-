@@ -40,14 +40,12 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
       (ps ?? []).forEach((p: any) => { profiles[p.user_id] = p; });
     }
 
-    // Pull any Cybercab investment linked to these transactions, so admin
-    // can see (and later sync) the Cybercab status alongside the deposit.
     const txIds = txs.map((t) => t.id);
     let cybercabByTxId: Record<string, any> = {};
     if (txIds.length) {
       const { data: cybs } = await supabase
         .from("cybercab_investments")
-        .select("id, transaction_id, status")
+        .select("id, transaction_id, status, amount_usd")
         .in("transaction_id", txIds as any);
       (cybs ?? []).forEach((c: any) => { cybercabByTxId[c.transaction_id] = c; });
     }
@@ -73,12 +71,17 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
     if (error) return toast.error(error.message);
 
     if (newStatus === "approved") {
-      const current = Number(d.profile?.deposit || 0);
       const amt = Number(d.amount_usd);
-      await supabase
+
+      // Credit BOTH: the deposit balance and the total balance.
+      const { error: profErr } = await supabase
         .from("profiles")
-        .update({ total_balance: current + amt } as any)
+        .update({
+          deposit: Number(d.profile?.deposit || 0) + amt,
+          total_balance: Number(d.profile?.total_balance || 0) + amt,
+        } as any)
         .eq("user_id", d.user_id);
+      if (profErr) toast.error(`Balance update failed: ${profErr.message}`);
 
       await notifyEmail({
         send: sendEmail,
@@ -89,12 +92,15 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
         body: `Your deposit of ${formatMoney(amt, d.profile?.currency)} has been approved and credited to your account.`,
       });
 
-      // If this deposit is linked to a Cybercab investment, activate it too
-      // and send a separate Cybercab-specific confirmation.
+      // Cybercab-linked: activate and set current value = invested amount.
       if (d.cybercab) {
         await supabase
           .from("cybercab_investments")
-          .update({ status: "active", updated_at: new Date().toISOString() })
+          .update({
+            status: "active",
+            current_value_usd: Number(d.cybercab.amount_usd ?? amt),
+            updated_at: new Date().toISOString(),
+          })
           .eq("id", d.cybercab.id);
 
         await notifyEmail({
