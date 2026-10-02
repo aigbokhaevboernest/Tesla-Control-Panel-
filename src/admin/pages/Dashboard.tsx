@@ -112,7 +112,7 @@ supabase.from("transactions").select("*").in("type", ["withdrawal", "payout"]).o
                   <p className="truncate text-xs text-muted-foreground">{d.method || "—"} · {new Date(d.created_at).toLocaleDateString()}</p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="text-sm font-semibold">{formatMoney(d.amount_usd, d.profile?.currency)}</span>
+                  formatMoney(d.amount_usd ?? d.amount ?? 0, d.profile?.currency)
                   <StatusBadge status={d.status} />
                 </div>
               </div>
@@ -130,7 +130,7 @@ supabase.from("transactions").select("*").in("type", ["withdrawal", "payout"]).o
                   <p className="truncate text-xs text-muted-foreground">{d.method || "—"} · {new Date(d.created_at).toLocaleDateString()}</p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="text-sm font-semibold">{formatMoney(d.amount, d.profile?.currency)}</span>
+                  formatMoney(d.amount_usd ?? d.amount ?? 0, d.profile?.currency)
                   <StatusBadge status={d.status} />
                 </div>
               </div>
