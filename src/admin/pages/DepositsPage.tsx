@@ -15,12 +15,13 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendEmail, setSendEmail] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
     let q = supabase
       .from("transactions")
-      .select("id, user_id, amount_usd, method, status, created_at, wallet_address, bank_details, bank_name, account_number, routing_number, swift_code, cashapp_tag, paypal_email, bank_fields")
+      .select("id, user_id, amount_usd, method, status, created_at, wallet_address, bank_details, bank_name, account_number, routing_number, swift_code, venmo_handle, cashapp_tag, paypal_email, bank_fields")
       .eq("type", "deposit")
       .order("created_at", { ascending: false });
 
@@ -64,82 +65,100 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
   }, [mode]);
 
   const review = async (d: Row, newStatus: string) => {
-    const { error } = await supabase
-      .from("transactions")
-      .update({ status: newStatus })
-      .eq("id", d.id);
-    if (error) return toast.error(error.message);
+    if (busyId) return;
+    setBusyId(d.id);
 
-    if (newStatus === "approved") {
-      const amt = Number(d.amount_usd);
+    try {
+      // Only update if still pending, so a double tap or a second admin
+      // can't approve (and credit) the same deposit twice.
+      const { data: updated, error } = await supabase
+        .from("transactions")
+        .update({ status: newStatus })
+        .eq("id", d.id)
+        .eq("status", "pending")
+        .select("id");
 
-      // Credit BOTH: the deposit balance and the total balance.
-      const { error: profErr } = await supabase
-        .from("profiles")
-        .update({
-          deposit: Number(d.profile?.deposit || 0) + amt,
-        } as any)
-        .eq("user_id", d.user_id);
-      if (profErr) toast.error(`Balance update failed: ${profErr.message}`);
+      if (error) return toast.error(error.message);
+      if (!updated || updated.length === 0) {
+        toast.error("This deposit was already reviewed");
+        load();
+        return;
+      }
 
-      await notifyEmail({
-        send: sendEmail,
-        userId: d.user_id,
-        email: d.profile?.email,
-        intent: "deposit_approved",
-        subject: "Your deposit has been approved",
-        body: `Your deposit of ${formatMoney(amt, d.profile?.currency)} has been approved and credited to your account.`,
-      });
+      if (newStatus === "approved") {
+        const amt = Number(d.amount_usd);
 
-      // Cybercab-linked: activate and set current value = invested amount.
-      if (d.cybercab) {
-        await supabase
-          .from("cybercab_investments")
+        // Credit BOTH: the deposit balance and the total balance.
+        const { error: profErr } = await supabase
+          .from("profiles")
           .update({
-            status: "active",
-            current_value_usd: Number(d.cybercab.amount_usd ?? amt),
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", d.cybercab.id);
+            deposit: Number(d.profile?.deposit || 0) + amt,
+            total_balance: Number(d.profile?.total_balance || 0) + amt,
+          } as any)
+          .eq("user_id", d.user_id);
+        if (profErr) toast.error(`Balance update failed: ${profErr.message}`);
 
         await notifyEmail({
           send: sendEmail,
           userId: d.user_id,
           email: d.profile?.email,
-          intent: "cybercab_investment_approved",
-          subject: "Your Cybercab investment is active",
-          body: `Your Cybercab investment of ${formatMoney(amt, d.profile?.currency)} has been approved and is now active.`,
+          intent: "deposit_approved",
+          subject: "Your deposit has been approved",
+          body: `Your deposit of ${formatMoney(amt, d.profile?.currency)} has been approved and credited to your account.`,
         });
-      }
-    } else if (newStatus === "rejected") {
-      await notifyEmail({
-        send: sendEmail,
-        userId: d.user_id,
-        email: d.profile?.email,
-        intent: "deposit_rejected",
-        subject: "Your deposit was rejected",
-        body: `Your deposit of ${formatMoney(Number(d.amount_usd), d.profile?.currency)} was rejected.`,
-      });
 
-      if (d.cybercab) {
-        await supabase
-          .from("cybercab_investments")
-          .update({ status: "failed", updated_at: new Date().toISOString() })
-          .eq("id", d.cybercab.id);
+        // Cybercab-linked: activate and set current value = invested amount.
+        if (d.cybercab) {
+          await supabase
+            .from("cybercab_investments")
+            .update({
+              status: "active",
+              current_value_usd: Number(d.cybercab.amount_usd ?? amt),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", d.cybercab.id);
 
+          await notifyEmail({
+            send: sendEmail,
+            userId: d.user_id,
+            email: d.profile?.email,
+            intent: "cybercab_investment_approved",
+            subject: "Your Cybercab investment is active",
+            body: `Your Cybercab investment of ${formatMoney(amt, d.profile?.currency)} has been approved and is now active.`,
+          });
+        }
+      } else if (newStatus === "rejected") {
         await notifyEmail({
           send: sendEmail,
           userId: d.user_id,
           email: d.profile?.email,
-          intent: "cybercab_investment_rejected",
-          subject: "Update on your Cybercab investment",
-          body: `Your Cybercab investment could not be approved. Please contact support.`,
+          intent: "deposit_rejected",
+          subject: "Your deposit was rejected",
+          body: `Your deposit of ${formatMoney(Number(d.amount_usd), d.profile?.currency)} was rejected.`,
         });
+
+        if (d.cybercab) {
+          await supabase
+            .from("cybercab_investments")
+            .update({ status: "failed", updated_at: new Date().toISOString() })
+            .eq("id", d.cybercab.id);
+
+          await notifyEmail({
+            send: sendEmail,
+            userId: d.user_id,
+            email: d.profile?.email,
+            intent: "cybercab_investment_rejected",
+            subject: "Update on your Cybercab investment",
+            body: `Your Cybercab investment could not be approved. Please contact support.`,
+          });
+        }
       }
+
+      toast.success(`Marked ${newStatus}`);
+      load();
+    } finally {
+      setBusyId(null);
     }
-
-    toast.success(`Marked ${newStatus}`);
-    load();
   };
 
   const getDetails = (d: Row) => {
@@ -166,7 +185,9 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
 
       {loading && <p className="text-center text-muted-foreground py-10">Loading…</p>}
       {!loading && rows.length === 0 && (
-        <p className="text-center text-muted-foreground py-10">No pending requests</p>
+        <p className="text-center text-muted-foreground py-10">
+          {mode === "pending" ? "No pending requests" : "No deposits yet"}
+        </p>
       )}
 
       {!loading && rows.length > 0 && (
@@ -216,10 +237,12 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
 
                 {mode === "pending" && (
                   <div className="grid grid-cols-2 gap-2 pt-1">
-                    <Button size="sm" className="w-full" onClick={() => review(d, "approved")}>Approve</Button>
-                    <Button size="sm" variant="destructive" className="w-full" onClick={() => review(d, "rejected")}>Reject</Button>
-                    <Button size="sm" variant="outline" className="w-full" onClick={() => review(d, "failed")}>Failed</Button>
-                    <Button size="sm" variant="outline" className="w-full" onClick={() => review(d, "canceled")}>Cancel</Button>
+                    <Button size="sm" className="w-full" disabled={busyId !== null} onClick={() => review(d, "approved")}>
+                      {busyId === d.id ? "Working…" : "Approve"}
+                    </Button>
+                    <Button size="sm" variant="destructive" className="w-full" disabled={busyId !== null} onClick={() => review(d, "rejected")}>Reject</Button>
+                    <Button size="sm" variant="outline" className="w-full" disabled={busyId !== null} onClick={() => review(d, "failed")}>Failed</Button>
+                    <Button size="sm" variant="outline" className="w-full" disabled={busyId !== null} onClick={() => review(d, "canceled")}>Cancel</Button>
                   </div>
                 )}
               </CardContent>
