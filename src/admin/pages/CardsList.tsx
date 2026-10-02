@@ -169,8 +169,9 @@ export default function CardsList() {
                         </TableCell>
                         <TableCell>
                           <span className="font-mono text-sm font-medium">
-                            ${c.amount?.toFixed(2) || "0.00"}
-                          </span>
+  ${Number(c.amount_usd ?? c.amount ?? 0).toFixed(2)}
+</span>
+
                         </TableCell>
                         <TableCell>
                           <StatusBadge status={c.status} />
