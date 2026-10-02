@@ -34,14 +34,16 @@ export default function Dashboard() {
         supabase.from("profiles").select("*", { count: "exact", head: true }),
         supabase.from("profiles").select("*", { count: "exact", head: true }).eq("status", "active"),
         supabase.from("profiles").select("*", { count: "exact", head: true }).eq("status", "blocked"),
-        supabase.from("transactions").select("amount", { count: "exact" }).eq("type", "deposit").eq("status", "pending"),
-        supabase.from("transactions").select("amount", { count: "exact" }).in("type", ["withdrawal", "payout"]).eq("status", "pending"),
-        supabase.from("transactions").select("amount").eq("type", "deposit").eq("status", "approved"),
+        supabase.from("transactions").select("amount, amount_usd", { count: "exact" }).eq("type", "deposit").eq("status", "pending"),
+        supabase.from("transactions").select("amount, amount_usd", { count: "exact" }).in("type", ["withdrawal", "payout"]).eq("status", "pending"),
+        supabase.from("transactions").select("amount, amount_usd").eq("type", "deposit").eq("status", "approved"),
         supabase.from("transactions").select("*").eq("type", "deposit").order("created_at", { ascending: false }).limit(5),
         supabase.from("transactions").select("*").in("type", ["withdrawal", "payout"]).order("created_at", { ascending: false }).limit(5),
       ]);
 
-      const sum = (rows: any[] | null) => (rows ?? []).reduce((s, r) => s + Number(r.amount || 0), 0);
+      const sum = (rows: any[] | null) =>
+  (rows ?? []).reduce((s, r) => s + Number(r.amount_usd ?? r.amount ?? 0), 0);
+
 
       // Attach profile info to recent rows
       const ids = Array.from(new Set([...(rd.data ?? []), ...(rp.data ?? [])].map((t: any) => t.user_id).filter(Boolean)));
@@ -111,7 +113,7 @@ export default function Dashboard() {
                   <p className="truncate text-xs text-muted-foreground">{d.method || "—"} · {new Date(d.created_at).toLocaleDateString()}</p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="text-sm font-semibold">{formatMoney(d.amount, d.profile?.currency)}</span>
+                  <span className="text-sm font-semibold">{formatMoney(d.amount_usd, d.profile?.currency)}</span>
                   <StatusBadge status={d.status} />
                 </div>
               </div>
