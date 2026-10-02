@@ -78,7 +78,6 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
         .from("profiles")
         .update({
           deposit: Number(d.profile?.deposit || 0) + amt,
-          total_balance: Number(d.profile?.total_balance || 0) + amt,
         } as any)
         .eq("user_id", d.user_id);
       if (profErr) toast.error(`Balance update failed: ${profErr.message}`);
