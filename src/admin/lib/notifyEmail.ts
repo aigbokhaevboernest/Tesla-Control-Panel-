@@ -3,7 +3,8 @@
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
-export type EmailIntent =
+export type EmailIntent = 
+
   | "deposit_approved"
   | "deposit_rejected"
   | "payout_approved"
@@ -23,13 +24,12 @@ export type EmailIntent =
   | "account_level_updated";
 
 // No per-admin routing yet — every outbound user notification is also copied here.
-const ADMIN_COPY_EMAIL = "support@teslagrowthequity.com";
 
 export async function notifyEmail(opts: {
   send: boolean;
   userId: string;
   email: string | null | undefined;
-  intent: EmailIntent;
+  intent: EmailIntent | string;
   subject: string;
   body?: string;
 }) {
@@ -89,17 +89,7 @@ export async function notifyEmail(opts: {
       await supabase.from("email_log").update({ status: "sent" }).eq("id", logRow.id);
     }
 
-    // Best-effort admin copy — failures here don't block or surface to the reviewer.
-    supabase.functions
-      .invoke("send-email", {
-        body: {
-          to: ADMIN_COPY_EMAIL,
-          first_name: "Admin",
-          subject: `[Copy] ${opts.subject}`,
-          message: opts.body ?? opts.subject,
-        },
-      })
-      .catch(() => {});
+    // Best-effort admin copy — failures here don't block or surface to the 
 
     toast.success("Notification email sent");
   } catch (err: any) {
