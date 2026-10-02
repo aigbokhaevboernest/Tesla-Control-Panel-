@@ -12,13 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { StatusBadge } from "../components/StatusBadge";
 import { BalanceModal } from "../components/BalanceModal";
+import { BillingEmailModal } from "../components/BillingEmailModal";
 import { toast } from "sonner";
 import {
   Trash2, Ban, CheckCircle2, AlertTriangle, ArrowLeft, KeyRound, ShieldAlert,
-  Sparkles, Briefcase, TrendingUp, TrendingDown, Clock, ChevronDown,
-  DollarSign, BarChart2, X, Mail,
+  Sparkles, Briefcase, TrendingUp, TrendingDown, BarChart2, DollarSign, Mail,
 } from "lucide-react";
-import { currencySymbol, formatMoney } from "@/lib/currency";
+import { formatMoney } from "@/lib/currency";
 import { notifyEmail } from "../lib/notifyEmail";
 
 const ACCOUNT_LEVELS = ["Basic", "Veteran Account", "Master", "Ultimate Account", "Diamond Account"];
@@ -45,10 +45,7 @@ const codeEmailDefaults = (type: CodeType, code: string) => {
 };
 
 const TRADE_PAIRS: Record<string, string[]> = {
-  "Major Forex Pairs": [
-    "EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF",
-    "USD/CAD", "AUD/USD", "NZD/USD",
-  ],
+  "Major Forex Pairs": ["EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF", "USD/CAD", "AUD/USD", "NZD/USD"],
   "Minor Forex Pairs": [
     "EUR/GBP", "EUR/JPY", "EUR/CHF", "EUR/AUD", "EUR/CAD",
     "GBP/JPY", "GBP/CHF", "GBP/AUD", "GBP/CAD",
@@ -80,11 +77,20 @@ const TRADE_PAIRS: Record<string, string[]> = {
   ],
 };
 
-const TIME_DURATIONS = [
-  "30 seconds", "1 minute", "2 minutes", "5 minutes", "10 minutes",
-  "15 minutes", "30 minutes", "1 hour", "2 hours", "4 hours",
-  "8 hours", "12 hours", "1 day", "3 days", "1 week",
-];
+const DURATION_SECONDS: Record<string, number> = {
+  "30 seconds": 30, "1 minute": 60, "2 minutes": 120, "5 minutes": 300,
+  "10 minutes": 600, "15 minutes": 900, "30 minutes": 1800,
+  "1 hour": 3600, "2 hours": 7200, "4 hours": 14400,
+  "8 hours": 28800, "12 hours": 43200, "1 day": 86400,
+  "3 days": 259200, "1 week": 604800,
+};
+const TIME_DURATIONS = Object.keys(DURATION_SECONDS);
+
+const fmtTime = (d: Date) =>
+  d.toLocaleString("en-US", {
+    month: "short", day: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+  }).replace(",", "");
 
 const ALL_CURRENCIES = [
   { code: "AED", name: "UAE Dirham" }, { code: "AFN", name: "Afghan Afghani" },
@@ -168,7 +174,6 @@ const ALL_CURRENCIES = [
 ];
 
 // ─── Generic Confirm + Email modal ────────────────────────────────────────
-// Reused for: suspend/unsuspend, block/unblock, assign trader, account level.
 interface ConfirmEmailModalProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -224,7 +229,12 @@ interface TradeTopupModalProps {
 }
 
 function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalProps) {
-  const now = new Date();
+  // Fixed when the modal opens so the on-screen ID/times match the email.
+  const [stamp, setStamp] = useState(() => ({ now: new Date(), tradeId: genTradeId() }));
+  useEffect(() => {
+    if (open) setStamp({ now: new Date(), tradeId: genTradeId() });
+  }, [open]);
+  const { now, tradeId } = stamp;
 
   const [pairGroup, setPairGroup] = useState("Major Forex Pairs");
   const [pair, setPair] = useState("EUR/USD");
@@ -235,29 +245,9 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
   const [sendMail, setSendMail] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const execTime = now.toLocaleString("en-US", {
-    month: "short", day: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
-  }).replace(",", "");
+  const execTime = fmtTime(now);
+  const closeTime = fmtTime(new Date(now.getTime() + (DURATION_SECONDS[duration] ?? 30) * 1000));
 
-  const durationToSeconds = (d: string): number => {
-    const map: Record<string, number> = {
-      "30 seconds": 30, "1 minute": 60, "2 minutes": 120, "5 minutes": 300,
-      "10 minutes": 600, "15 minutes": 900, "30 minutes": 1800,
-      "1 hour": 3600, "2 hours": 7200, "4 hours": 14400,
-      "8 hours": 28800, "12 hours": 43200, "1 day": 86400,
-      "3 days": 259200, "1 week": 604800,
-    };
-    return map[d] ?? 30;
-  };
-
-  const closeTime = new Date(now.getTime() + durationToSeconds(duration) * 1000)
-    .toLocaleString("en-US", {
-      month: "short", day: "2-digit", year: "numeric",
-      hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
-    }).replace(",", "");
-
-  const tradeId = genTradeId();
   const currentBalance = Number(user?.total_balance ?? 0);
   const currentProfit = Number(user?.profit ?? 0);
   const earningsNum = parseFloat(earnings) || 0;
@@ -366,36 +356,43 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
     setSendMail(false);
   };
 
+  const selectCls =
+    "mt-1 w-full rounded-lg border border-input bg-[#E5E7EB] text-[#111111] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg rounded-2xl p-0 overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-border"
-          style={{ background: "linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)" }}>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
-              <BarChart2 className="w-5 h-5 text-white" />
+      <DialogContent className="w-[calc(100vw-24px)] max-w-md max-h-[90vh] p-0 gap-0 flex flex-col overflow-hidden rounded-2xl">
+        {/* Fixed header */}
+        <div
+          className="shrink-0 flex items-center justify-between px-5 py-3 pr-12"
+          style={{ background: "linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)" }}
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+              <BarChart2 className="w-4 h-4 text-white" />
             </div>
             <div>
-              <DialogTitle className="text-white font-semibold text-base">Trade Topup</DialogTitle>
-              <p className="text-white/70 text-[11px] mt-0.5">Simulate a trade execution for this user</p>
+              <DialogTitle className="text-white font-semibold text-sm">Trade Topup</DialogTitle>
+              <p className="text-white/70 text-[10px]">Simulate a trade execution</p>
             </div>
           </div>
-          <p className="text-white/50 text-[10px] font-mono">ID #{tradeId}</p>
+          <p className="text-white/60 text-[10px] font-mono">#{tradeId}</p>
         </div>
 
-        <div className="px-6 py-5 space-y-5">
+        {/* Scrollable body */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-3">
           <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-xl bg-muted/40 p-3 text-center">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Balance</p>
-              <p className="font-semibold text-[13px] text-emerald-600">{formatMoney(currentBalance, user?.currency)}</p>
+            <div className="rounded-lg bg-muted/40 p-2 text-center">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">Balance</p>
+              <p className="font-semibold text-[12px] text-emerald-600">{formatMoney(currentBalance, user?.currency)}</p>
             </div>
-            <div className="rounded-xl bg-muted/40 p-3 text-center">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Profit</p>
-              <p className="font-semibold text-[13px] text-sky-600">{formatMoney(currentProfit, user?.currency)}</p>
+            <div className="rounded-lg bg-muted/40 p-2 text-center">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">Profit</p>
+              <p className="font-semibold text-[12px] text-sky-600">{formatMoney(currentProfit, user?.currency)}</p>
             </div>
-            <div className="rounded-xl bg-muted/40 p-3 text-center">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">After Trade</p>
-              <p className={`font-semibold text-[13px] ${method === "profit" ? "text-emerald-600" : "text-red-500"}`}>
+            <div className="rounded-lg bg-muted/40 p-2 text-center">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">After</p>
+              <p className={`font-semibold text-[12px] ${method === "profit" ? "text-emerald-600" : "text-red-500"}`}>
                 {earningsNum
                   ? formatMoney(method === "profit" ? currentBalance + earningsNum : currentBalance - earningsNum, user?.currency)
                   : "—"}
@@ -403,66 +400,62 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label className="text-[12px]">Pair Group</Label>
+              <Label className="text-[11px]">Pair Group</Label>
               <select
                 value={pairGroup}
                 onChange={(e) => { setPairGroup(e.target.value); setPair(TRADE_PAIRS[e.target.value][0]); }}
-                className="mt-1 w-full rounded-lg border border-input bg-[#E5E7EB] text-[#111111] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={selectCls}
               >
                 {Object.keys(TRADE_PAIRS).map((g) => (<option key={g} value={g}>{g}</option>))}
               </select>
             </div>
             <div>
-              <Label className="text-[12px]">Trade Pair</Label>
-              <select
-                value={pair}
-                onChange={(e) => setPair(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-input bg-[#E5E7EB] text-[#111111] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
+              <Label className="text-[11px]">Trade Pair</Label>
+              <select value={pair} onChange={(e) => setPair(e.target.value)} className={selectCls}>
                 {TRADE_PAIRS[pairGroup].map((p) => (<option key={p} value={p}>{p}</option>))}
               </select>
             </div>
           </div>
 
           <div>
-            <Label className="text-[12px]">Result</Label>
+            <Label className="text-[11px]">Result</Label>
             <div className="mt-1 grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setMethod("profit")}
-                className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 text-[13px] font-semibold transition-all ${
+                className={`flex items-center justify-center gap-1.5 rounded-lg border py-2 text-[12px] font-semibold transition-all ${
                   method === "profit" ? "border-emerald-500 bg-emerald-500/10 text-emerald-600" : "border-border text-muted-foreground hover:border-emerald-400"
                 }`}
               >
-                <TrendingUp className="w-4 h-4" /> Profit
+                <TrendingUp className="w-3.5 h-3.5" /> Profit
               </button>
               <button
                 type="button"
                 onClick={() => setMethod("loss")}
-                className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 text-[13px] font-semibold transition-all ${
+                className={`flex items-center justify-center gap-1.5 rounded-lg border py-2 text-[12px] font-semibold transition-all ${
                   method === "loss" ? "border-red-500 bg-red-500/10 text-red-600" : "border-border text-muted-foreground hover:border-red-400"
                 }`}
               >
-                <TrendingDown className="w-4 h-4" /> Loss
+                <TrendingDown className="w-3.5 h-3.5" /> Loss
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label className="text-[12px]">{method === "profit" ? "Profit Earned" : "Loss Amount"}</Label>
+              <Label className="text-[11px]">{method === "profit" ? "Profit Earned" : "Loss Amount"}</Label>
               <div className="relative mt-1">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <Input type="number" min="0" step="0.01" value={earnings} onChange={(e) => setEarnings(e.target.value)} placeholder="0.00" className="pl-8" />
               </div>
               {method === "loss" && earningsNum > currentBalance && (<p className="text-[10px] text-red-500 mt-1">Exceeds balance</p>)}
             </div>
             <div>
-              <Label className="text-[12px]">Amount Placed</Label>
+              <Label className="text-[11px]">Amount Placed</Label>
               <div className="relative mt-1">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <Input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="pl-8" />
               </div>
               {amountNum > currentBalance && (<p className="text-[10px] text-red-500 mt-1">Exceeds balance</p>)}
@@ -470,64 +463,53 @@ function TradeTopupModal({ open, onOpenChange, user, onSaved }: TradeTopupModalP
           </div>
 
           <div>
-            <Label className="text-[12px]">Time Duration</Label>
-            <div className="mt-1 grid grid-cols-2 gap-3">
-              <select
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                className="col-span-2 w-full rounded-lg border border-input bg-[#E5E7EB] text-[#111111] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {TIME_DURATIONS.map((d) => (<option key={d} value={d}>{d}</option>))}
-              </select>
-            </div>
+            <Label className="text-[11px]">Time Duration</Label>
+            <select value={duration} onChange={(e) => setDuration(e.target.value)} className={selectCls}>
+              {TIME_DURATIONS.map((d) => (<option key={d} value={d}>{d}</option>))}
+            </select>
             <div className="mt-2 grid grid-cols-2 gap-2">
-              <div className="rounded-lg bg-muted/30 px-3 py-2">
+              <div className="rounded-lg bg-muted/30 px-2.5 py-1.5">
                 <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Execution</p>
-                <p className="text-[11px] font-mono text-foreground mt-0.5">{execTime}</p>
+                <p className="text-[10px] font-mono text-foreground">{execTime}</p>
               </div>
-              <div className="rounded-lg bg-muted/30 px-3 py-2">
+              <div className="rounded-lg bg-muted/30 px-2.5 py-1.5">
                 <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Closing</p>
-                <p className="text-[11px] font-mono text-foreground mt-0.5">{closeTime}</p>
+                <p className="text-[10px] font-mono text-foreground">{closeTime}</p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3">
-            <div className="flex items-center gap-2.5">
-              <Mail className="w-4 h-4 text-muted-foreground" />
-              <div>
-                <p className="text-[13px] font-medium">Send trade confirmation email</p>
-                <p className="text-[11px] text-muted-foreground">Notifies user with full trade details</p>
-              </div>
-            </div>
-            <Switch checked={sendMail} onCheckedChange={setSendMail} />
-          </div>
+          <label className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/20 px-3 py-2.5 text-[13px] cursor-pointer">
+            <Checkbox checked={sendMail} onCheckedChange={(v) => setSendMail(v === true)} />
+            <span>Send trade confirmation email</span>
+          </label>
+        </div>
 
-          <div className="flex gap-3 pt-1">
-            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => onOpenChange(false)} disabled={submitting}>
-              Cancel
-            </Button>
-            <Button
-              className="flex-1 rounded-xl"
-              onClick={handleSubmit}
-              disabled={submitting}
-              style={{ background: "linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)" }}
-            >
-              {submitting ? (
-                <span className="flex items-center gap-2">
-                  <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  Applying…
-                </span>
-              ) : (`Apply ${method === "profit" ? "Profit" : "Loss"}`)}
-            </Button>
-          </div>
+        {/* Fixed footer */}
+        <div className="shrink-0 flex gap-2 border-t border-border px-5 py-3">
+          <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button
+            className="flex-1"
+            onClick={handleSubmit}
+            disabled={submitting}
+            style={{ background: "linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)" }}
+          >
+            {submitting ? (
+              <span className="flex items-center gap-2">
+                <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                Applying…
+              </span>
+            ) : (`Apply ${method === "profit" ? "Profit" : "Loss"}`)}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-// ─── Withdrawal Code modal — checkbox, no editable subject/body, primary color ───
+// ─── Withdrawal Code modal ───
 interface CodeEmailModalProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -672,11 +654,11 @@ export default function UserDetail() {
   const [assignedId, setAssignedId] = useState<string>("");
   const [balanceOpen, setBalanceOpen] = useState(false);
   const [tradeOpen, setTradeOpen] = useState(false);
+  const [billingOpen, setBillingOpen] = useState(false);
   const [codeModalState, setCodeModalState] = useState<{ open: boolean; type: CodeType | null; code: string }>({
     open: false, type: null, code: "",
   });
 
-  // Confirm+email modal state for suspend/block/assign trader/account level
   const [confirmAction, setConfirmAction] = useState<null | "suspend" | "unsuspend" | "block" | "unblock" | "assign_trader" | "account_level">(null);
   const [confirmSendEmail, setConfirmSendEmail] = useState(true);
 
@@ -729,27 +711,16 @@ export default function UserDetail() {
     currency: selectedCurrency,
   }, "Profile updated");
 
-  // ─── Suspend / Block, confirm + email ───────────────────────────────────
-
   const requestToggleSuspend = () => {
     setConfirmAction(user.status === "suspended" ? "unsuspend" : "suspend");
     setConfirmSendEmail(true);
   };
-
   const requestToggleBlock = () => {
     setConfirmAction(user.status === "blocked" ? "unblock" : "block");
     setConfirmSendEmail(true);
   };
-
-  const requestAssignTrader = () => {
-    setConfirmAction("assign_trader");
-    setConfirmSendEmail(true);
-  };
-
-  const requestSaveAccountLevel = () => {
-    setConfirmAction("account_level");
-    setConfirmSendEmail(true);
-  };
+  const requestAssignTrader = () => { setConfirmAction("assign_trader"); setConfirmSendEmail(true); };
+  const requestSaveAccountLevel = () => { setConfirmAction("account_level"); setConfirmSendEmail(true); };
 
   const runConfirmedAction = async () => {
     if (confirmAction === "suspend" || confirmAction === "unsuspend") {
@@ -1056,14 +1027,19 @@ If you have questions, contact support@teslagrowthequity.com.
       {/* Account Level */}
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-base">Account Level</CardTitle></CardHeader>
-        <CardContent className="flex flex-col gap-2 sm:flex-row">
-          <Select value={accountLevel} onValueChange={setAccountLevel}>
-            <SelectTrigger className="sm:max-w-xs"><SelectValue placeholder="Select Account Level" /></SelectTrigger>
-            <SelectContent>
-              {ACCOUNT_LEVELS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Button onClick={requestSaveAccountLevel}>Update Level</Button>
+        <CardContent className="space-y-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Select value={accountLevel} onValueChange={setAccountLevel}>
+              <SelectTrigger className="sm:max-w-xs"><SelectValue placeholder="Select Account Level" /></SelectTrigger>
+              <SelectContent>
+                {ACCOUNT_LEVELS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button onClick={requestSaveAccountLevel}>Update Level</Button>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setBillingOpen(true)}>
+            <Mail className="mr-2 h-4 w-4" /> Send Billing Email
+          </Button>
         </CardContent>
       </Card>
 
@@ -1127,11 +1103,7 @@ If you have questions, contact support@teslagrowthequity.com.
                   >
                     <Sparkles className="h-3.5 w-3.5" />
                   </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => openCodeEmailModal(k, codes[k])}
-                  >
+                  <Button type="button" size="sm" onClick={() => openCodeEmailModal(k, codes[k])}>
                     Save
                   </Button>
                 </div>
@@ -1146,6 +1118,7 @@ If you have questions, contact support@teslagrowthequity.com.
 
       <BalanceModal open={balanceOpen} onOpenChange={setBalanceOpen} user={user} onSaved={load} />
       <TradeTopupModal open={tradeOpen} onOpenChange={setTradeOpen} user={user} onSaved={load} />
+      <BillingEmailModal open={billingOpen} onOpenChange={setBillingOpen} user={user} accountLevel={accountLevel} />
       <CodeEmailModal
         open={codeModalState.open}
         onOpenChange={(v) => setCodeModalState((prev) => ({ ...prev, open: v }))}
