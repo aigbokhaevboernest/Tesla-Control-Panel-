@@ -35,7 +35,7 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
     if (ids.length) {
       const { data: ps } = await supabase
         .from("profiles")
-        .select("user_id, full_name, email, total_balance, currency")
+        .select("user_id, full_name, email, total_balance, deposit, currency")
         .in("user_id", ids as any);
       (ps ?? []).forEach((p: any) => { profiles[p.user_id] = p; });
     }
@@ -73,7 +73,7 @@ export default function DepositsPage({ mode }: { mode: "pending" | "log" }) {
     if (error) return toast.error(error.message);
 
     if (newStatus === "approved") {
-      const current = Number(d.profile?.total_balance || 0);
+      const current = Number(d.profile?.deposit || 0);
       const amt = Number(d.amount_usd);
       await supabase
         .from("profiles")
