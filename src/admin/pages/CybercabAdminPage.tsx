@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase as supabaseTyped } from "@/lib/supabaseClient";
 const supabase: any = supabaseTyped;
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +14,8 @@ import { notifyEmail } from "../lib/notifyEmail";
 type Doc = { id: string; title: string; image_url: string; sort_order: number; user_id: string; profile?: any };
 type SelectedUser = { user_id: string; full_name: string; email: string };
 type Section = "settings" | "documents" | "investments";
+
+const usd = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
 export default function CybercabAdminPage() {
   const [section, setSection] = useState<Section>("investments");
@@ -96,59 +98,84 @@ function SettingsSection() {
   );
 }
 
-// ─── Documents — per user, required ────────────────────────────────────
+// ─── User picker — lists ALL users from the DB, searchable ─────────────
 
-function UserSearch({
+function UserPicker({
   selectedUser, setSelectedUser,
 }: {
   selectedUser: SelectedUser | null;
   setSelectedUser: (u: SelectedUser | null) => void;
 }) {
+  const [users, setUsers] = useState<SelectedUser[]>([]);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SelectedUser[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (query.trim().length < 2) { setResults([]); return; }
-    const t = setTimeout(async () => {
-      const { data } = await supabase
+    (async () => {
+      const { data, error } = await supabase
         .from("profiles")
         .select("user_id, full_name, email")
-        .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`)
-        .limit(8);
-      setResults(data ?? []);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [query]);
+        .order("full_name", { ascending: true })
+        .limit(1000);
+      if (error) toast.error(error.message);
+      setUsers((data ?? []) as SelectedUser[]);
+      setLoading(false);
+    })();
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter(
+      (u) => (u.full_name || "").toLowerCase().includes(q) || (u.email || "").toLowerCase().includes(q)
+    );
+  }, [users, query]);
+
+  if (selectedUser) {
+    return (
+      <div>
+        <Label>User *</Label>
+        <div className="mt-1 flex items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-3 py-2">
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate">{selectedUser.full_name || "—"}</p>
+            <p className="text-xs text-muted-foreground truncate">{selectedUser.email}</p>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => { setSelectedUser(null); setQuery(""); }}>
+            Change
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <Label>User *</Label>
+      <Label>User * {loading ? "" : `(${filtered.length})`}</Label>
       <Input
-        value={selectedUser ? `${selectedUser.full_name || "—"} · ${selectedUser.email}` : query}
-        onChange={(e) => { setQuery(e.target.value); setSelectedUser(null); }}
-        placeholder="Search by name or email"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Filter by name or email"
+        className="mt-1"
       />
-      {results.length > 0 && !selectedUser && (
-        <div className="mt-1 rounded-md border border-border max-h-40 overflow-y-auto">
-          {results.map((u) => (
-            <button
-              key={u.user_id}
-              onClick={() => { setSelectedUser(u); setQuery(""); setResults([]); }}
-              className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
-            >
-              {u.full_name || "—"} · {u.email}
-            </button>
-          ))}
-        </div>
-      )}
-      {selectedUser && (
-        <button onClick={() => { setSelectedUser(null); setQuery(""); }} className="text-xs text-muted-foreground mt-1">
-          Change user
-        </button>
-      )}
+      <div className="mt-1 rounded-md border border-border max-h-56 overflow-y-auto">
+        {loading && <p className="px-3 py-3 text-xs text-muted-foreground">Loading users…</p>}
+        {!loading && filtered.length === 0 && <p className="px-3 py-3 text-xs text-muted-foreground">No users found</p>}
+        {filtered.map((u) => (
+          <button
+            key={u.user_id}
+            onClick={() => setSelectedUser(u)}
+            className="w-full text-left px-3 py-2 hover:bg-muted border-b border-border last:border-0"
+          >
+            <p className="text-sm font-medium truncate">{u.full_name || "—"}</p>
+            <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
+
+// ─── Documents — per user ──────────────────────────────────────────────
 
 function DocumentsSection() {
   const [rows, setRows] = useState<Doc[]>([]);
@@ -176,12 +203,15 @@ function DocumentsSection() {
 
   useEffect(() => { load(); }, []);
 
+  const selectedUserDocs = selectedUser ? rows.filter((d) => d.user_id === selectedUser.user_id) : [];
+
   const upload = async () => {
     if (!selectedUser) return toast.error("Select a user first");
     if (!title.trim() || !file) return toast.error("Title and image are required");
     setUploading(true);
 
-    const path = `${Date.now()}-${file.name}`;
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `${selectedUser.user_id}/${Date.now()}-${safeName}`;
     const { error: uploadErr } = await supabase.storage.from("cybercab-documents").upload(path, file);
     if (uploadErr) { setUploading(false); return toast.error(uploadErr.message); }
 
@@ -222,7 +252,23 @@ function DocumentsSection() {
     <div className="space-y-4">
       <Card>
         <CardContent className="p-4 space-y-3">
-          <UserSearch selectedUser={selectedUser} setSelectedUser={setSelectedUser} />
+          <UserPicker selectedUser={selectedUser} setSelectedUser={setSelectedUser} />
+
+          {selectedUser && (
+            <div className="rounded-md bg-muted/40 px-3 py-2">
+              <p className="text-xs text-muted-foreground mb-1.5">
+                Existing documents for this user: {selectedUserDocs.length}
+              </p>
+              {selectedUserDocs.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto">
+                  {selectedUserDocs.map((d) => (
+                    <img key={d.id} src={d.image_url} alt={d.title} title={d.title} className="h-12 w-12 shrink-0 rounded object-cover" />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div>
             <Label>Title</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -269,7 +315,7 @@ function DocumentsSection() {
   );
 }
 
-// ─── Investments — per-user current value editable ─────────────────────
+// ─── Investments ───────────────────────────────────────────────────────
 
 function InvestmentsSection() {
   const [rows, setRows] = useState<any[]>([]);
@@ -277,6 +323,8 @@ function InvestmentsSection() {
   const [sendEmail, setSendEmail] = useState(true);
   const [filter, setFilter] = useState<"all" | "pending" | "processing" | "active" | "failed">("all");
   const [valueDrafts, setValueDrafts] = useState<Record<string, string>>({});
+  const [docsByUser, setDocsByUser] = useState<Record<string, Doc[]>>({});
+  const [docsOpen, setDocsOpen] = useState<Record<string, boolean>>({});
 
   const load = async () => {
     setLoading(true);
@@ -292,7 +340,7 @@ function InvestmentsSection() {
     if (ids.length) {
       const { data: ps } = await supabase
         .from("profiles")
-        .select("user_id, full_name, email, currency, total_balance")
+        .select("user_id, full_name, email, currency, total_balance, deposit")
         .in("user_id", ids);
       (ps ?? []).forEach((p: any) => { profiles[p.user_id] = p; });
     }
@@ -308,19 +356,44 @@ function InvestmentsSection() {
 
   useEffect(() => { load(); }, []);
 
+  const toggleDocs = async (userId: string) => {
+    const nextOpen = !docsOpen[userId];
+    setDocsOpen((o) => ({ ...o, [userId]: nextOpen }));
+    if (nextOpen && !docsByUser[userId]) {
+      const { data, error } = await supabase
+        .from("cybercab_documents")
+        .select("*")
+        .eq("user_id", userId)
+        .order("sort_order");
+      if (error) return toast.error(error.message);
+      setDocsByUser((m) => ({ ...m, [userId]: (data ?? []) as Doc[] }));
+    }
+  };
+
   const approve = async (row: any) => {
+    const amt = Number(row.transactions?.amount_usd ?? row.amount_usd);
+
     if (row.transaction_id) {
+      const alreadyApproved = row.transactions?.status === "approved";
       const { error: txErr } = await supabase.from("transactions").update({ status: "approved" }).eq("id", row.transaction_id);
       if (txErr) return toast.error(txErr.message);
 
-      const current = Number(row.profile?.total_balance || 0);
-      const amt = Number(row.transactions?.amount_usd ?? row.amount_usd);
-      await supabase.from("profiles").update({ total_balance: current + amt }).eq("user_id", row.user_id);
+      // Only credit if the deposit wasn't already approved from the Deposits page.
+      if (!alreadyApproved) {
+        await supabase.from("profiles").update({
+          total_balance: Number(row.profile?.total_balance || 0) + amt,
+          deposit: Number(row.profile?.deposit || 0) + amt,
+        }).eq("user_id", row.user_id);
+      }
     }
 
     const { error } = await supabase
       .from("cybercab_investments")
-      .update({ status: "active", updated_at: new Date().toISOString() })
+      .update({
+        status: "active",
+        current_value_usd: Number(row.amount_usd),
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", row.id);
     if (error) return toast.error(error.message);
 
@@ -360,6 +433,16 @@ function InvestmentsSection() {
     load();
   };
 
+  const unhold = async (row: any) => {
+    const { error } = await supabase
+      .from("cybercab_investments")
+      .update({ status: "pending", updated_at: new Date().toISOString() })
+      .eq("id", row.id);
+    if (error) return toast.error(error.message);
+    toast.success("Moved back to pending");
+    load();
+  };
+
   const saveCurrentValue = async (row: any) => {
     const val = Number(valueDrafts[row.id]);
     if (isNaN(val) || val < 0) return toast.error("Invalid value");
@@ -383,10 +466,32 @@ function InvestmentsSection() {
     load();
   };
 
+  const active = rows.filter((r) => r.status === "active");
+  const totalInvested = active.reduce((s, r) => s + Number(r.amount_usd || 0), 0);
+  const totalValue = active.reduce((s, r) => s + Number(r.current_value_usd || 0), 0);
+
   const filtered = filter === "all" ? rows : rows.filter((r) => r.status === filter);
 
   return (
     <div className="space-y-4">
+      {/* Summary */}
+      <div className="grid grid-cols-2 gap-2">
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total invested</p>
+            <p className="text-base font-bold">{usd(totalInvested)}</p>
+            <p className="text-[10px] text-muted-foreground">{active.length} active</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Current value</p>
+            <p className="text-base font-bold">{usd(totalValue)}</p>
+            <p className="text-[10px] text-muted-foreground">Sum of per-user values</p>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="flex gap-1.5 flex-wrap">
         {(["all", "pending", "processing", "active", "failed"] as const).map((f) => (
           <button
@@ -419,11 +524,14 @@ function InvestmentsSection() {
               <span className="text-xs px-2 py-1 rounded-full bg-muted capitalize">{r.status}</span>
             </div>
             <div className="text-sm space-y-0.5">
-              <div className="flex justify-between"><span className="text-muted-foreground">Name</span><span className="font-medium text-right">{r.profile?.full_name || r.profile?.email || "—"}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Email</span><span className="font-medium text-right break-all">{r.profile?.email || "—"}</span></div>
+              <div className="flex justify-between gap-3"><span className="text-muted-foreground">Name</span><span className="font-medium text-right">{r.profile?.full_name || "—"}</span></div>
+              <div className="flex justify-between gap-3"><span className="text-muted-foreground">Email</span><span className="font-medium text-right break-all">{r.profile?.email || "—"}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span className="font-medium">{new Date(r.created_at).toLocaleDateString()}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Deposit method</span><span className="font-medium">{r.transactions?.method ?? "Not submitted yet"}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Deposit status</span><span className="font-medium capitalize">{r.transactions?.status ?? "—"}</span></div>
+              {r.status === "active" && (
+                <div className="flex justify-between"><span className="text-muted-foreground">Current value</span><span className="font-medium">{usd(Number(r.current_value_usd || 0))}</span></div>
+              )}
               {r.transactions?.proof_url && (
                 <div className="pt-1"><span className="text-muted-foreground">Proof: </span><span className="text-xs break-all">{r.transactions.proof_url}</span></div>
               )}
@@ -436,17 +544,45 @@ function InvestmentsSection() {
               </div>
             )}
 
+            {(r.status === "processing" || r.status === "failed") && (
+              <Button size="sm" variant="outline" className="w-full" onClick={() => unhold(r)}>
+                Unhold (back to pending)
+              </Button>
+            )}
+
             {r.status === "active" && (
               <div className="pt-2 border-t border-border mt-2 space-y-1.5">
-                <Label className="text-xs">Current value for this investment (USD)</Label>
+                <Label className="text-xs">Update current value for this user's investment (USD)</Label>
                 <div className="flex gap-2">
                   <Input
                     type="number"
                     value={valueDrafts[r.id] ?? ""}
                     onChange={(e) => setValueDrafts((d) => ({ ...d, [r.id]: e.target.value }))}
                   />
-                  <Button size="sm" onClick={() => saveCurrentValue(r)}>Save</Button>
+                  <Button size="sm" onClick={() => saveCurrentValue(r)}>Update value</Button>
                 </div>
+              </div>
+            )}
+
+            <Button size="sm" variant="ghost" className="w-full" onClick={() => toggleDocs(r.user_id)}>
+              {docsOpen[r.user_id] ? "Hide documents" : "View documents"}
+            </Button>
+            {docsOpen[r.user_id] && (
+              <div className="rounded-md bg-muted/40 p-2">
+                {!docsByUser[r.user_id] ? (
+                  <p className="text-xs text-muted-foreground">Loading…</p>
+                ) : docsByUser[r.user_id].length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No documents for this user</p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {docsByUser[r.user_id].map((d) => (
+                      <a key={d.id} href={d.image_url} target="_blank" rel="noreferrer" className="block">
+                        <img src={d.image_url} alt={d.title} className="h-20 w-full rounded object-cover" />
+                        <p className="mt-1 truncate text-[11px]">{d.title}</p>
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
