@@ -34,9 +34,9 @@ export default function Dashboard() {
         supabase.from("profiles").select("*", { count: "exact", head: true }),
         supabase.from("profiles").select("*", { count: "exact", head: true }).eq("status", "active"),
         supabase.from("profiles").select("*", { count: "exact", head: true }).eq("status", "blocked"),
-        supabase.from("transactions").select("amount, amount_usd", { count: "exact" }).eq("type", "deposit").eq("status", "pending"),
-        supabase.from("transactions").select("amount, amount_usd", { count: "exact" }).in("type", ["withdrawal", "payout"]).eq("status", "pending"),
-        supabase.from("transactions").select("amount, amount_usd").eq("type", "deposit").eq("status", "approved"),
+        supabase.from("transactions").select("amount_usd", { count: "exact" }).eq("type", "deposit").eq("status", "pending"),
+        supabase.from("transactions").select("amount_usd", { count: "exact" }).in("type", ["withdrawal", "payout"]).eq("status", "pending"),
+        supabase.from("transactions").select("amount_usd").eq("type", "deposit").eq("status", "approved"),
         supabase.from("transactions").select("*").eq("type", "deposit").order("created_at", { ascending: false }).limit(5),
         supabase.from("transactions").select("*").in("type", ["withdrawal", "payout"]).order("created_at", { ascending: false }).limit(5),
       ]);
