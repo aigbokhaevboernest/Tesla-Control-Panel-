@@ -5,8 +5,12 @@ import { supabase } from "@/lib/supabaseClient";
 const TIMEOUT_MS = 2 * 60 * 1000;
 const DEBUG = true; // logs "[idle] ..." in the console; set false when done
 
-const LAST_ACTIVITY_KEY = "tv:last-activity";
-const FORCE_LOGOUT_KEY = "tv:force-logout";
+// Admin login lives here (NOT /login).
+const LOGIN_PATH = "/admin/login";
+
+// "tcp:" prefix so this app never shares an idle clock with the main site.
+const LAST_ACTIVITY_KEY = "tcp:last-activity";
+const FORCE_LOGOUT_KEY = "tcp:force-logout";
 
 const AUTH_STORAGE_PATTERNS = [/supabase\.auth/i, /^sb-.*-auth-token$/i, /^sb-.*-code-verifier$/i];
 const isAuthStorageKey = (key: string) => AUTH_STORAGE_PATTERNS.some((p) => p.test(key));
@@ -55,7 +59,7 @@ let loggingOut = false;
 
 /**
  * The ONE logout path (Logout buttons + idle expiry).
- * Sign out, wipe auth + idle keys, hard-navigate to /login.
+ * Sign out, wipe auth + idle keys, hard-navigate to the admin login.
  */
 export async function performLogout(reason = "manual") {
   if (loggingOut) return;
@@ -79,7 +83,7 @@ export async function performLogout(reason = "manual") {
 
   clearAuthStorage();
   clearAuthCookies();
-  window.location.replace("/login");
+  window.location.replace(LOGIN_PATH);
 }
 
 // In-memory clock = source of truth. localStorage only shares activity
@@ -154,7 +158,7 @@ function useIdleController(enabled: boolean, loading: boolean) {
       if (e.key === FORCE_LOGOUT_KEY && e.newValue) {
         clearAuthStorage();
         clearAuthCookies();
-        window.location.replace("/login");
+        window.location.replace(LOGIN_PATH);
       }
     };
 
@@ -192,9 +196,9 @@ function useIdleController(enabled: boolean, loading: boolean) {
 }
 
 /**
- * Same call style as before: useAutoLogout() with no arguments.
- * Reads the Supabase session itself, so it needs no auth hook and no
- * useNavigate (logout is a hard redirect to /login).
+ * Same call style as before: useAutoLogout() with no arguments
+ * (used in AdminLayout). Reads the Supabase session itself, so it needs no
+ * auth hook and no useNavigate (logout is a hard redirect to /admin/login).
  */
 export function useAutoLogout() {
   const [state, setState] = useState({ loading: true, loggedIn: false });
