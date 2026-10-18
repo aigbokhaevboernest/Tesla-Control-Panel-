@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
-// TESTING value. Set back to 30 * 60 * 1000 before shipping.
+// Production: log out after 30 minutes of no interaction.
+// (For testing, temporarily use 2 * 60 * 1000 and set DEBUG = true.)
 const TIMEOUT_MS = 30 * 60 * 1000;
-const DEBUG = true; // logs "[idle] ..." in the console; set false when done
+const DEBUG = false; // true = logs "[idle] ..." in the console
 
 // Admin login lives here (NOT /login).
 const LOGIN_PATH = "/admin/login";
