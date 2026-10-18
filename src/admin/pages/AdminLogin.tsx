@@ -85,7 +85,7 @@ export default function AdminLogin() {
     <main className="flex min-h-screen items-center justify-center bg-[#FAFAFA] px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <h1 className="font-serif text-3xl text-[#1A1A1A]">Admin</h1>
+          <h1 className="font-serif text-3xl text-[#1A1A1A]"> Tesla Admin</h1>
           <p className="mt-1 text-sm text-[#767676]">Sign in to continue</p>
         </div>
 
