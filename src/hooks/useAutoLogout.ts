@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabaseClient";
 
 // Production: log out after 30 minutes of no interaction.
 // (For testing, temporarily use 2 * 60 * 1000 and set DEBUG = true.)
-const TIMEOUT_MS = 30 * 60 * 1000;
+const TIMEOUT_MS = 1 * 60 * 1000;
 const DEBUG = false; // true = logs "[idle] ..." in the console
 
 // Admin login lives here (NOT /login).
