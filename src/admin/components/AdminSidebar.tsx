@@ -2,15 +2,13 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, Clock, IdCard, UserPlus, Briefcase, CreditCard,
   KeyRound, ArrowDownToLine, Receipt, ArrowUpFromLine, FileText, BarChart3, LogOut,
-  Landmark, ShieldAlert, ArrowLeftRight,
+  Landmark, ShieldAlert, ArrowLeftRight, ShieldCheck, Rocket,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar, SidebarHeader, SidebarFooter,
 } from "@/components/ui/sidebar";
-import { supabase } from "@/lib/supabaseClient";
-import { useNavigate } from "react-router-dom";
-import { ShieldCheck } from "lucide-react";
+import { performLogout } from "@/hooks/useAutoLogout";
 
 const SECTIONS: { label: string; items: { title: string; url: string; icon: React.ComponentType<{ className?: string }> }[] }[] = [
   { label: "", items: [{ title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard }] },
@@ -46,13 +44,12 @@ export function AdminSidebar() {
   const { pathname } = useLocation();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const navigate = useNavigate();
 
   const isActive = (url: string) => pathname === url || pathname.startsWith(url + "/");
 
-  const logout = async () => {
-    await supabase.auth.signOut();
-    navigate("/admin/login", { replace: true });
+  // Shared logout path: signs out, clears auth + idle keys, hard-redirects to /admin/login.
+  const logout = () => {
+    void performLogout("manual");
   };
 
   return (
@@ -64,8 +61,8 @@ export function AdminSidebar() {
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="text-sm font-semibold">Hyip Pro</span>
-              <span className="text-[10px] text-muted-foreground">Admin Portal</span>
+              <span className="text-sm font-semibold">Tesla Admin</span>
+              <span className="text-[10px] text-muted-foreground">Control Panel</span>
             </div>
           )}
         </div>
