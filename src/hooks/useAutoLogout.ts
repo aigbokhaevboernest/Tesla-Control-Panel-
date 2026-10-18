@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 
-const TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const TIMEOUT_MS = 1 * 60 * 1000; // 30 minutes
 const EVENTS = ["touchstart", "touchmove", "keydown", "scroll", "click"] as const;
 
 export function useAutoLogout() {
