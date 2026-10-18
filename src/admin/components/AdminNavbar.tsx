@@ -1,14 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/supabaseClient";
-import { useNavigate } from "react-router-dom";
+import { performLogout } from "@/hooks/useAutoLogout";
 import { LogOut, ShieldCheck } from "lucide-react";
 
 export function AdminNavbar({ email }: { email: string | null }) {
-  const navigate = useNavigate();
-
-  const logout = async () => {
-    await supabase.auth.signOut();
-    navigate("/admin/login", { replace: true });
+  // Shared logout path: signs out, clears auth + idle keys, hard-redirects to /admin/login.
+  const logout = () => {
+    void performLogout("manual");
   };
 
   return (
@@ -17,7 +14,7 @@ export function AdminNavbar({ email }: { email: string | null }) {
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-foreground" />
           <span className="font-mono text-sm font-semibold tracking-tight">
-            admin.portal
+            Tesla Admin
           </span>
         </div>
         <div className="flex items-center gap-4">
