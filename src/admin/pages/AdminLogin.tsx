@@ -39,7 +39,7 @@ export default function AdminLogin() {
   };
 
   useEffect(() => {
-    document.title = "Admin Login";
+    document.title = "Tesla Admin Login";
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session?.user) return;
       try {
