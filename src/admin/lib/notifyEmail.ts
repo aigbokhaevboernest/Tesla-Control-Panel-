@@ -1,15 +1,15 @@
-// Email notification helper — now wired to the "send-email" edge function (Resend).
+// Email notification helper — wired to the "send-email" edge function (Resend).
 // Still logs to email_log when admin opts in via the "send email" tick.
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
-export type EmailIntent = 
-
+export type EmailIntent =
   | "deposit_approved"
   | "deposit_rejected"
   | "payout_approved"
   | "payout_rejected"
   | "balance_credited"
+  | "balance_debited"
   | "profit_added"
   | "withdrawal_made"
   | "kyc_approved"
@@ -21,9 +21,8 @@ export type EmailIntent =
   | "account_reactivated"
   | "account_unblocked"
   | "expert_assigned"
-  | "account_level_updated";
-
-// No per-admin routing yet — every outbound user notification is also copied here.
+  | "account_level_updated"
+  | "custom_email";
 
 export async function notifyEmail(opts: {
   send: boolean;
@@ -55,9 +54,8 @@ export async function notifyEmail(opts: {
     toast.error(`Failed to log email: ${logError.message}`);
   }
 
-  // The live send-email edge function reads `to`, not `email` — this was
-  // the actual reason these emails never sent. Look up a first name too so
-  // the greeting isn't blank, same as the rest of the app.
+  // The live send-email edge function reads `to`, not `email`. Look up a
+  // first name too so the greeting isn't blank.
   let firstName = "";
   const { data: prof } = await supabase
     .from("profiles")
@@ -88,8 +86,6 @@ export async function notifyEmail(opts: {
     if (logRow?.id) {
       await supabase.from("email_log").update({ status: "sent" }).eq("id", logRow.id);
     }
-
-    // Best-effort admin copy — failures here don't block or surface to the 
 
     toast.success("Notification email sent");
   } catch (err: any) {
