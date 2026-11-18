@@ -1,15 +1,13 @@
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { supabase as supabaseTyped } from "@/lib/supabaseClient";
 const supabase: any = supabaseTyped;
 import { toast } from "sonner";
-import { CheckCircle2 } from "lucide-react";
 import { currencySymbol, formatMoney } from "@/lib/currency";
 import { notifyEmail } from "../lib/notifyEmail";
 
@@ -30,16 +28,6 @@ const WALLET_LABEL: Record<Wallet, string> = {
 
 const minifyHtml = (html: string) => html.replace(/\n\s*/g, "").replace(/>\s+</g, "><");
 
-type Result = {
-  wallet: Wallet;
-  type: "credit" | "debit";
-  amount: number;
-  total_balance: number;
-  profit: number;
-  deposit: number;
-  emailed: boolean;
-};
-
 export function BalanceModal({
   open, onOpenChange, user, onSaved,
 }: {
@@ -51,18 +39,16 @@ export function BalanceModal({
   const [wallet, setWallet] = useState<Wallet>("total_balance");
   const [type, setType] = useState<"credit" | "debit">("credit");
   const [amount, setAmount] = useState("");
-  const [description, setDescription] = useState("");
-  const [sendMail, setSendMail] = useState(true);
+  const [sendMail, setSendMail] = useState(false);
+  const [confirmMailOpen, setConfirmMailOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<Result | null>(null);
 
   // Fresh start each time the modal is opened.
   useEffect(() => {
     if (open) {
-      setResult(null);
       setAmount("");
-      setDescription("");
-      setSendMail(true);
+      setSendMail(false);
+      setConfirmMailOpen(false);
     }
   }, [open]);
 
@@ -133,7 +119,6 @@ export function BalanceModal({
 
     // Email (same helper as the other admin notifications).
     const isCredit = type === "credit";
-    const note = description.trim();
     await notifyEmail({
       send: sendMail,
       userId: user.user_id,
@@ -151,16 +136,15 @@ export function BalanceModal({
     <td style="padding:10px 14px; font-size:13px; color:#64748b; border-bottom:1px solid #e2e8f0;">Amount</td>
     <td style="padding:10px 14px; font-size:13px; font-weight:700; border-bottom:1px solid #e2e8f0; color:${isCredit ? "#16a34a" : "#dc2626"};">${isCredit ? "+" : "-"}${formatMoney(amt, cur)}</td>
   </tr>
-  ${note ? `<tr style="background:#f8fafc;"><td style="padding:10px 14px; font-size:13px; color:#64748b; border-bottom:1px solid #e2e8f0;">Note</td><td style="padding:10px 14px; font-size:13px; color:#0f172a; border-bottom:1px solid #e2e8f0;">${note.replace(/</g, "&lt;")}</td></tr>` : ""}
-  <tr>
+  <tr style="background:#f8fafc;">
     <td style="padding:10px 14px; font-size:13px; color:#64748b; border-bottom:1px solid #e2e8f0;">Main Balance</td>
     <td style="padding:10px 14px; font-size:13px; font-weight:700; color:#0f172a; border-bottom:1px solid #e2e8f0;">${formatMoney(nTotal, cur)}</td>
   </tr>
-  <tr style="background:#f8fafc;">
+  <tr>
     <td style="padding:10px 14px; font-size:13px; color:#64748b; border-bottom:1px solid #e2e8f0;">Profit Balance</td>
     <td style="padding:10px 14px; font-size:13px; font-weight:600; color:#0f172a; border-bottom:1px solid #e2e8f0;">${formatMoney(nProfit, cur)}</td>
   </tr>
-  <tr>
+  <tr style="background:#f8fafc;">
     <td style="padding:10px 14px; font-size:13px; color:#64748b;">Deposit Balance</td>
     <td style="padding:10px 14px; font-size:13px; font-weight:600; color:#0f172a;">${formatMoney(nDeposit, cur)}</td>
   </tr>
@@ -170,109 +154,103 @@ export function BalanceModal({
 
     setBusy(false);
 
-    // Stay open: show confirmation, reset the form, refresh parent numbers.
-    setResult({
-      wallet, type, amount: amt,
-      total_balance: nTotal, profit: nProfit, deposit: nDeposit,
-      emailed: sendMail && !!user.email,
-    });
+    // Stay open: reset the form and refresh parent numbers.
     setAmount("");
-    setDescription("");
     toast.success("Balance updated");
     onSaved();
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Add / Subtract Balance ({cur || "—"})</DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md rounded-2xl sm:rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Add / Subtract Balance ({cur || "—"})</DialogTitle>
+          </DialogHeader>
 
-        {result && (
-          <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm">
-            <div className="flex items-center gap-2 font-semibold text-emerald-600">
-              <CheckCircle2 className="h-4 w-4" /> Balance updated
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {result.type === "credit" ? "Credited" : "Debited"} {formatMoney(result.amount, cur)} · {WALLET_LABEL[result.wallet]}
-              {result.emailed ? " · email sent" : ""}
-            </p>
-            <div className="mt-2 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-md bg-background/60 p-1.5">
-                <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Total</p>
-                <p className="text-[12px] font-semibold tabular-nums">{formatMoney(result.total_balance, cur)}</p>
-              </div>
-              <div className="rounded-md bg-background/60 p-1.5">
-                <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Profit</p>
-                <p className="text-[12px] font-semibold tabular-nums">{formatMoney(result.profit, cur)}</p>
-              </div>
-              <div className="rounded-md bg-background/60 p-1.5">
-                <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Deposit</p>
-                <p className="text-[12px] font-semibold tabular-nums">{formatMoney(result.deposit, cur)}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-3">
-          <div>
-            <Label>Select Wallet</Label>
-            <Select value={wallet} onValueChange={(v: Wallet) => setWallet(v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="total_balance">Main Balance ({formatMoney(user.total_balance, cur)})</SelectItem>
-                <SelectItem value="profit">Profit Balance ({formatMoney(user.profit, cur)})</SelectItem>
-                <SelectItem value="deposit">Deposit Balance ({formatMoney(user.deposit, cur)})</SelectItem>
-              </SelectContent>
-            </Select>
-            {wallet === "profit" && (
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Profit changes also update the Main Balance.
-              </p>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-3">
             <div>
-              <Label>Type</Label>
-              <Select value={type} onValueChange={(v: "credit" | "debit") => setType(v)}>
+              <Label>Select Wallet</Label>
+              <Select value={wallet} onValueChange={(v: Wallet) => setWallet(v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="credit">Credit (+)</SelectItem>
-                  <SelectItem value="debit">Debit (−)</SelectItem>
+                  <SelectItem value="total_balance">Main Balance ({formatMoney(user.total_balance, cur)})</SelectItem>
+                  <SelectItem value="profit">Profit Balance ({formatMoney(user.profit, cur)})</SelectItem>
+                  <SelectItem value="deposit">Deposit Balance ({formatMoney(user.deposit, cur)})</SelectItem>
                 </SelectContent>
               </Select>
+              {wallet === "profit" && (
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Profit changes also update the Main Balance.
+                </p>
+              )}
             </div>
-            <div>
-              <Label>Amount ({sym || cur || "—"})</Label>
-              <Input
-                type="number"
-                inputMode="decimal"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Type</Label>
+                <Select value={type} onValueChange={(v: "credit" | "debit") => setType(v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="credit">Credit (+)</SelectItem>
+                    <SelectItem value="debit">Debit (−)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Amount ({sym || cur || "—"})</Label>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={sendMail}
+                onCheckedChange={(v) => {
+                  if (v === true) {
+                    // Ask before turning on; the box only checks after confirming.
+                    setConfirmMailOpen(true);
+                  } else {
+                    setSendMail(false);
+                  }
+                }}
               />
-            </div>
+              Send email notification to {user.email || "user"}
+            </label>
           </div>
-          <div>
-            <Label>Description (optional)</Label>
-            <Textarea
-              rows={2}
-              placeholder="Reason / note"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={sendMail} onCheckedChange={(v) => setSendMail(v === true)} />
-            Send email notification to {user.email || "user"}
-          </label>
-        </div>
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-          <Button onClick={submit} disabled={busy}>{busy ? "Saving…" : "Submit"}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+            <Button onClick={submit} disabled={busy}>{busy ? "Saving…" : "Submit"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation for turning on the email notification */}
+      <Dialog open={confirmMailOpen} onOpenChange={setConfirmMailOpen}>
+        <DialogContent className="max-w-sm rounded-2xl sm:rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Turn on email notification?</DialogTitle>
+            <DialogDescription>
+              An email will be sent to {user.email || "the user"} when you submit this balance change.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setConfirmMailOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                setSendMail(true);
+                setConfirmMailOpen(false);
+              }}
+            >
+              Turn on
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
