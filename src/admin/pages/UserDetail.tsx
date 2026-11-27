@@ -651,6 +651,8 @@ export default function UserDetail() {
   const [codes, setCodes] = useState<Record<CodeType, string>>({ auth: "", cot: "", tax: "" });
   const [codeToggles, setCodeToggles] = useState<Record<CodeType, boolean>>({ auth: true, cot: false, tax: false });
   const [traders, setTraders] = useState<any[]>([]);
+  // Super Admin = has role "admin" in user_roles. Cannot be blocked or deleted.
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [assignedId, setAssignedId] = useState<string>("");
   const [balanceOpen, setBalanceOpen] = useState(false);
   const [tradeOpen, setTradeOpen] = useState(false);
@@ -664,12 +666,15 @@ export default function UserDetail() {
 
   const load = async () => {
     if (!id) return;
-    const [{ data: u, error }, { data: c }, { data: tr }] = await Promise.all([
+    const [{ data: u, error }, { data: c }, { data: tr }, { data: roles }] = await Promise.all([
       supabase.from("profiles").select("*").eq("user_id", id).single(),
       supabase.from("account_withdrawal_codes").select("*").eq("user_id", id).maybeSingle(),
       supabase.from("expert_traders").select("id, name, specialty, win_rate").order("sort_order", { ascending: true }),
+      // Role check for Super Admin protection
+      supabase.from("user_roles").select("role").eq("user_id", id),
     ]);
     if (error) return toast.error(error.message);
+    setIsSuperAdmin(((roles as any[]) ?? []).some((r) => r.role === "admin"));
     setUser(u);
     setAccountLevel((u as any).account_level || "Basic");
     setSelectedCurrency((u as any).currency || "USD");
@@ -716,6 +721,11 @@ export default function UserDetail() {
     setConfirmSendEmail(true);
   };
   const requestToggleBlock = () => {
+    // Safety net: a Super Admin can never be blocked (unblocking stays allowed)
+    if (isSuperAdmin && user.status !== "blocked") {
+      toast.error("Super Admin accounts can't be blocked");
+      return;
+    }
     setConfirmAction(user.status === "blocked" ? "unblock" : "block");
     setConfirmSendEmail(true);
   };
@@ -823,6 +833,11 @@ If you have questions, contact support@teslagrowthequity.com.
   };
 
   const del = async () => {
+    // Safety net: a Super Admin can never be deleted
+    if (isSuperAdmin) {
+      toast.error("Super Admin accounts can't be deleted");
+      return;
+    }
     if (!confirm(`Delete ${user.email}? Permanent.`)) return;
     const adminAuth = (supabase as any).auth?.admin;
     if (adminAuth?.deleteUser) {
@@ -919,6 +934,11 @@ If you have questions, contact support@teslagrowthequity.com.
           </Button>
           <h1 className="truncate text-xl font-semibold sm:text-2xl">{user.full_name || user.email}</h1>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {isSuperAdmin && (
+              <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-white">
+                Super Admin
+              </span>
+            )}
             <StatusBadge status={user.status} />
             <span>{user.email}</span>
             {cur && <span>· {cur}</span>}
@@ -984,20 +1004,30 @@ If you have questions, contact support@teslagrowthequity.com.
         <CardHeader className="pb-2"><CardTitle className="text-base">Account Status</CardTitle></CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={requestToggleBlock}>
-              {user.status === "blocked"
-                ? <><CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" />Unblock</>
-                : <><Ban className="mr-2 h-4 w-4 text-rose-500" />Block User</>}
-            </Button>
+            {/* Block is hidden for Super Admins (Unblock stays so a blocked one can be restored) */}
+            {(!isSuperAdmin || user.status === "blocked") && (
+              <Button variant="outline" size="sm" onClick={requestToggleBlock}>
+                {user.status === "blocked"
+                  ? <><CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" />Unblock</>
+                  : <><Ban className="mr-2 h-4 w-4 text-rose-500" />Block User</>}
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={requestToggleSuspend}>
               {user.status === "suspended"
                 ? <><CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" />Reactivate</>
                 : <><AlertTriangle className="mr-2 h-4 w-4 text-amber-500" />Suspend</>}
             </Button>
-            <Button variant="destructive" size="sm" onClick={del}>
-              <Trash2 className="mr-2 h-4 w-4" />Delete
-            </Button>
+            {!isSuperAdmin && (
+              <Button variant="destructive" size="sm" onClick={del}>
+                <Trash2 className="mr-2 h-4 w-4" />Delete
+              </Button>
+            )}
           </div>
+          {isSuperAdmin && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Super Admin accounts can't be blocked or deleted.
+            </p>
+          )}
         </CardContent>
       </Card>
 
